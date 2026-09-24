@@ -304,10 +304,7 @@ run_vad_loop() {
 # presses in this pane. Nothing is recorded otherwise — office chatter never reaches Claude.
 run_ptt_loop() {
   printf '\033[2J\033[H'
-  echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   rejim: tugma   (to'xtatish: Ctrl-C)"
-  echo "    ⌥ Space ni BOSIB TURIB gapiring, qo'yib yuboring — matn yuqoridagi Claude oynasiga yoziladi."
-  echo "    Hotkey yo'q bo'lsa: shu oynada ⏎ = yozishni boshlash, yana ⏎ = yuborish. Tugma bosilmaganda hech narsa eshitilmaydi."
-  echo
+  echo "🎙  ovoz · til: $LANG_CODE · $ENGINE · tugma rejimi — ⌥ Space ni BOSIB TURIB gapiring, qo'yib yuboring (yoki shu oynada ⏎ … ⏎). Ctrl-C = to'xtatish"
   local wav="$VOICE_TMP/ptt-$$.wav" errlog="$VOICE_TMP/ptt-$$.err" recpid key text
   echo $$ > "$VOICE_PTT_LOOP_PID"; rm -f "$VOICE_PTT_FLAG"
   trap 'rm -f "$wav" "$errlog" "$VOICE_PTT_LOOP_PID" "$VOICE_PTT_FLAG"; exit 0' INT TERM EXIT

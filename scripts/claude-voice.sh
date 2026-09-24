@@ -30,7 +30,7 @@ source "$SCRIPT_DIR/voice-lib.sh" || exit 1
 readonly LISTEN="$SCRIPT_DIR/voice-listen.sh"
 readonly SETUP="$SCRIPT_DIR/voice-setup.sh"
 readonly PREFIX_SESSION="voice-"
-readonly EAR_HEIGHT=7
+readonly EAR_HEIGHT=6
 
 action="start"; name=""; ear_session=""; extra_args=()
 while (( $# > 0 )); do
@@ -58,8 +58,13 @@ attach_ear() { # session
   if tmux list-panes -t "$sess" -F '#{pane_start_command}' 2>/dev/null | grep -q "voice-listen.sh --loop"; then
     warn "the ear is already listening in $sess"; return 0
   fi
-  tmux split-window -v -l "$EAR_HEIGHT" -t "$claude_pane" -c "$PWD" "$LISTEN --loop --target $claude_pane" \
+  local ear_pane
+  ear_pane="$(tmux split-window -v -l "$EAR_HEIGHT" -t "$claude_pane" -c "$PWD" -P -F '#{pane_id}' "$LISTEN --loop --target $claude_pane")" \
     || { err "tmux could not open the ear pane"; return 1; }
+  # tmux grows panes proportionally when the window is resized; keep the ear at its height
+  tmux set-hook -t "$sess" client-resized "resize-pane -t $ear_pane -y $EAR_HEIGHT" 2>/dev/null || true
+  tmux set-hook -t "$sess" window-layout-changed "resize-pane -t $ear_pane -y $EAR_HEIGHT" 2>/dev/null || true
+  tmux resize-pane -t "$ear_pane" -y "$EAR_HEIGHT" 2>/dev/null || true
   tmux select-pane -t "$claude_pane"
   touch "$VOICE_SPEAK_FLAG"
   ok "ear attached to $sess — speak; read-aloud is ON (/ovoz speak off turns it off)"
