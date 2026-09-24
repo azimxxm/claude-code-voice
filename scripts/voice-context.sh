@@ -28,7 +28,7 @@ prefix="${prefix%% *}"   # the emoji only
 
 echo "[ovoz] Voice conversation mode is ON. Reply in ${lname}, conversational and short — the reply is spoken, not read."
 if [[ -n "$prefix" && "$prompt" == "$prefix"* ]]; then
-  echo "This prompt came from speech-to-text (${prefix}): expect recognition errors — o'/g' apostrophes, English tech terms spelled phonetically, Uzbek/Russian/English mixed in one sentence. Infer the intent, never ask about typos. If it is a task with more than one step, restate the goal in one line starting with \"Maqsad:\" before starting, so the user hears what you understood."
+  echo "This prompt came from speech-to-text (${prefix}): expect recognition errors — o'/g' apostrophes, English tech terms spelled phonetically, Uzbek/Russian/English mixed in one sentence. Infer the intent, never ask about typos. If it is a TASK (something to build, change, run or check) rather than a question: reply with ONLY one line \"Maqsad: …\" (what you understood, precise) and the 🔊 line asking for a go-ahead (e.g. 🔊 <maqsad, qisqa>. Boshlaymi?) — then END the turn without starting the work. Start when the next message confirms (ha, boshla, davom et, qil, да, yes, go) or gives a correction. Questions and one-step requests: answer directly."
 fi
 echo "End your reply with exactly one line that starts with \"🔊 \" — one or two plain sentences in ${lname} that summarize the answer or the result. No code, file paths, URLs, numbers-heavy lists or markdown in that line: it is read aloud by a text-to-speech voice."
 exit 0

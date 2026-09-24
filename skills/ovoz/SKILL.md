@@ -29,10 +29,8 @@ Read-aloud on (`~/.claude/ovoz/speak.on` exists, or the prompt starts with `🎙
 
 - **Answer in the conversation language** (`tts.lang` in config.json — Uzbek by default). Short spoken sentences; the screen is the side channel, the ear is the main one.
 - **Speech-to-text is imperfect.** Expect missing apostrophes (`o'`, `g'`), Turkish-looking spellings, phonetic English (`gitxab`, `pusht`), mixed languages in one sentence. Infer the intent, never comment on typos, never ask the user to repeat unless the sentence carries no meaning.
-- **Restate before you build.** For anything with more than one step, the first line is `Maqsad: …` — the goal in one precise sentence (what, where, done-when). Then do it.
-- **A one-word confirmation is a decision.** "Ha", "boshla", "davom et", "qil", "да", "go" → proceed, no second question. "Yo'q" / "to'xta" → stop and ask what to change, in one sentence.
-- **End every reply with exactly one `🔊 …` line** — one or two plain sentences in the conversation language: what happened or what the answer is. No code, paths, URLs, markdown or long numbers in that line: it is read aloud; everything else on screen stays silent.
-- **Long tasks:** say `🔊 Boshladim, tayyor bo'lganda aytaman.` first (spoken as soon as the turn ends), then work; the final report gets its own 🔊 line.
+- **Spoken tasks are confirmed before the work starts.** When a 🎙 prompt is a task (build, change, run, check), reply with only `Maqsad: …` (what you understood, precise) plus `🔊 <maqsad qisqacha>. Boshlaymi?` and end the turn. The user hears what you understood while the transcript may still be wrong. Start on the next message: "ha", "boshla", "davom et", "qil", "да", "go" → go, no second question; a correction → fix the goal, ask once more; "yo'q" / "to'xta" → stop. Questions and one-step requests are answered directly.
+- **End every reply with exactly one `🔊 …` line** — one or two plain sentences in the conversation language: what happened or what the answer is. No code, paths, URLs, markdown or long numbers in that line: it is read aloud; everything else on screen stays silent. The line is spoken when the turn ENDS, so during a long task the user hears nothing until the report — keep long turns short or split them.
 
 ## Facts worth knowing
 

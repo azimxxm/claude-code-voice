@@ -58,9 +58,9 @@ voice_config_default() {
     }
   },
   "mic": {
-    "threshold": "2%",
+    "threshold": "auto",
     "stop_after_silence": "1.2",
-    "max_seconds": "60"
+    "max_seconds": "30"
   }
 }
 JSON

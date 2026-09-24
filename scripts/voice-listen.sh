@@ -80,18 +80,48 @@ wait_for_silence_from_claude() {
   return 0
 }
 
+# The silence threshold. "auto" (default) measures the room for one second and sets the
+# threshold to 3× the noise floor (kept between 2 % and 25 %) — a fixed 2 % never stops
+# recording on a hot microphone whose noise alone peaks above it.
+THR=""
+calibrate_threshold() {
+  local conf; conf="$(cfg '.mic.threshold' 'auto')"
+  if [[ "$conf" != "auto" ]]; then THR="$conf"; return 0; fi
+  local probe="$VOICE_TMP/noise-$$.wav" rms
+  rec -q -r 16000 -c 1 -b 16 -e signed-integer "$probe" trim 0 1 2>/dev/null
+  rms="$(sox "$probe" -n stat 2>&1 | awk '/RMS +amplitude/ {print $3}')"
+  rm -f "$probe"
+  THR="$(awk -v r="${rms:-0}" 'BEGIN { t = r * 100 * 3; if (t < 2) t = 2; if (t > 25) t = 25; printf "%.1f%%", t }')"
+  vlog "mic noise floor rms=${rms:-?} → threshold $THR"
+  printf '%s' "${rms:-0}"
+}
+
 # One utterance: starts when sound rises above the threshold, stops after N seconds of
 # silence. SoX does the voice-activity detection — no extra daemon needed.
+# With SHOW_METER=1 (the loop) SoX's live VU meter stays on screen while it records.
 record_utterance() { # wav
-  local wav="$1" thr stop maxsec
-  thr="$(cfg '.mic.threshold' '2%')"
+  local wav="$1" stop maxsec errlog
+  [[ -n "$THR" ]] || calibrate_threshold >/dev/null
   stop="$(cfg '.mic.stop_after_silence' '1.2')"
-  maxsec="$(cfg '.mic.max_seconds' '60')"
+  maxsec="$(cfg '.mic.max_seconds' '30')"
+  errlog="$VOICE_TMP/rec-$$.err"
   rm -f "$wav"
-  rec -q -r 16000 -c 1 -b 16 -e signed-integer "$wav" \
-      silence 1 0.15 "$thr" 1 "$stop" "$thr" trim 0 "$maxsec" 2>>"$VOICE_LOG"
+  if [[ "${SHOW_METER:-0}" == 1 ]]; then
+    rec -S -r 16000 -c 1 -b 16 -e signed-integer "$wav" \
+        silence 1 0.15 "$THR" 1 "$stop" "$THR" trim 0 "$maxsec" 2> >(tee "$errlog" >&2)
+  else
+    rec -q -r 16000 -c 1 -b 16 -e signed-integer "$wav" \
+        silence 1 0.15 "$THR" 1 "$stop" "$THR" trim 0 "$maxsec" 2>"$errlog"
+  fi
+  sleep 0.1   # let the tee behind the meter flush
+  if grep -q "clipped" "$errlog" 2>/dev/null; then
+    CLIPPED=1
+    grep -E "WARN" "$errlog" >> "$VOICE_LOG" 2>/dev/null || true
+  fi
+  rm -f "$errlog"
   [[ -s "$wav" ]]
 }
+CLIPPED=0
 
 # Whisper hallucinates stock phrases on near-silence; drop them.
 looks_like_noise() {
@@ -317,19 +347,25 @@ case "$mode" in
     esac
     printf '\033[2J\033[H'
     echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   (to'xtatish: Ctrl-C)"
-    echo "    Gapiring, jim bo'ling — matn yuqoridagi Claude oynasiga o'zi yoziladi."
+    printf '    Fon shovqini o'"'"'lchanmoqda (1 s jim turing)… '
+    noise="$(calibrate_threshold)"
+    echo "chegara: $THR   (bir gap ko'pi bilan $(cfg '.mic.max_seconds' '30') s; $(cfg '.mic.stop_after_silence' '1.2') s jimlik = gap tugadi)"
+    echo "    Gapiring, jim bo'ling — matn yuqoridagi Claude oynasiga o'zi yoziladi. Pastdagi ko'rsatkich ovozingizni ko'rsatadi."
     echo
     wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav"; exit 0' INT TERM EXIT
+    n=0
     while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
       load_config
       wait_for_silence_from_claude
-      printf '\r\033[K🎙  eshitayapman…'
-      record_utterance "$wav" || continue
+      printf '\r\033[K🎙  eshitayapman… (gapiring)\n'
+      SHOW_METER=1 record_utterance "$wav" || { printf '\r\033[K'; continue; }
       printf '\r\033[K⏳  yozib olayapman…'
       text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
       if looks_like_noise "$text"; then printf '\r\033[K'; continue; fi
       printf '\r\033[K📝  %s\n' "$text"
+      if (( CLIPPED )); then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; CLIPPED=0; fi
       deliver_to_pane "$text"
+      n=$(( n + 1 )); (( n % 10 == 0 )) && calibrate_threshold >/dev/null
     done
     echo "Claude oynasi yopildi — quloq to'xtadi." ;;
 esac
