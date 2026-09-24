@@ -1,0 +1,27 @@
+{
+  "description": "ovoz — spoken conversation with Claude Code: context for the model on every prompt, read the 🔊 line aloud when a turn ends, keep the launchers on PATH",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/ovoz\" --link-quiet", "timeout": 5 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/voice-context.sh\"", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/voice-speak.sh\" --hook", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# ovoz — talk to Claude Code in your language and hear it answer. One command for everything.
+#
+#   ovoz                       status
+#   ovoz setup [--hotkey] [--no-uzbek-model] [--model NAME]   install / repair everything
+#   ovoz start                 add the ear to the tmux session you are in (Claude keeps running)
+#   ovoz stop                  close the ear, stop local STT servers, read-aloud off
+#   ovoz lang <code>           conversation language: uz ru en tr kk de … (ovoz uz|ru|en = shortcuts)
+#   ovoz speak on|off          read Claude's 🔊 line aloud after every answer
+#   ovoz voice <name>          edge-tts voice for the current language (madina | sardor | any voice name)
+#   ovoz voice list [locale]   voices available, e.g. ovoz voice list tr-TR
+#   ovoz engine <name>         local | gigaam | groq | openai | elevenlabs | gemini   (cloud ones need *_API_KEY)
+#   ovoz say "text"            speak now
+#   ovoz test                  self-test without a microphone (speak a sentence, transcribe it back)
+#   ovoz sky [live|off]        your agents as a galaxy · live activity graph · stop both
+#   ovoz link                  put ovoz, claude-voice, agent-sky on PATH (~/.local/bin)
+#   ovoz config | log          show config.json · tail the log
+
+set -u
+source "$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)/voice-lib.sh" || exit 1
+readonly LISTEN="$OVOZ_SCRIPTS/voice-listen.sh"
+readonly SPEAK="$OVOZ_SCRIPTS/voice-speak.sh"
+readonly SETUP="$OVOZ_SCRIPTS/voice-setup.sh"
+readonly SKY="$OVOZ_SCRIPTS/agent-sky.sh"
+readonly CV="$OVOZ_SCRIPTS/claude-voice.sh"
+
+voice_ensure_config
+cmd="${1:-status}"; shift || true
+
+ear_panes() { tmux list-panes -a -F '#{pane_id} #{pane_start_command}' 2>/dev/null | grep "voice-listen.sh --loop" | cut -d' ' -f1; }
+
+case "$cmd" in
+  status|"")   "$SETUP" --status ;;
+  setup)       "$SETUP" "$@" ;;
+  link)        link_launchers && echo "linked: ~/.local/bin/ovoz, claude-voice, agent-sky" ;;
+  --link-quiet) # SessionStart hook: keep launchers pointing at the current plugin version, say nothing
+               link_launchers 2>/dev/null; [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || echo "[ovoz] launchers are in ~/.local/bin (not on PATH here): $OVOZ_SCRIPTS/ovoz"; exit 0 ;;
+  start)       "$CV" --ear "$@" ;;
+  stop)
+    for p in $(ear_panes); do tmux kill-pane -t "$p" 2>/dev/null && echo "ear closed ($p)"; done
+    "$LISTEN" --stop-server >/dev/null 2>&1; rm -f "$VOICE_SPEAK_FLAG"
+    echo "read-aloud off, local STT servers stopped" ;;
+  lang|uz|ru|en|tr|kk|de)
+    code="$cmd"; [[ "$cmd" == "lang" ]] && code="${1:-}"
+    [[ -n "$code" ]] || { echo "usage: ovoz lang <code>" >&2; exit 2; }
+    cfg_set '.lang' "\"$code\"" && cfg_set '.tts.lang' "\"$code\"" || exit 1
+    v="$(cfg ".tts.voices.\"$code\"" '')"
+    echo "language: $code ($(lang_name "$code"))  voice: ${v:-none configured → ovoz voice list ${code}}"
+    [[ "$code" == "auto" ]] && echo "note: whisper's auto-detect mistakes Uzbek for Arabic-script languages — prefer an explicit code" ;;
+  speak)
+    case "${1:-}" in
+      on)  touch "$VOICE_SPEAK_FLAG"; echo "read-aloud ON — Claude ends every answer with a 🔊 line and it is spoken" ;;
+      off) rm -f "$VOICE_SPEAK_FLAG"; "$SPEAK" --stop >/dev/null 2>&1; echo "read-aloud OFF" ;;
+      *)   speak_enabled && echo "read-aloud is ON" || echo "read-aloud is OFF" ;;
+    esac ;;
+  voice)
+    lang="$(cfg '.tts.lang' 'uz')"
+    case "${1:-}" in
+      list)   loc="${2:-}"; command -v edge-tts >/dev/null || { echo "edge-tts missing — ovoz setup" >&2; exit 1; }
+              edge-tts --list-voices 2>/dev/null | { [[ -n "$loc" ]] && grep -i "^$loc" || cat; } ;;
+      madina) cfg_set '.tts.voices.uz' '"uz-UZ-MadinaNeural"' && "$SPEAK" --lang uz "Salom, men Madina. Endi shu ovozda gapiraman." ;;
+      sardor) cfg_set '.tts.voices.uz' '"uz-UZ-SardorNeural"' && "$SPEAK" --lang uz "Salom, men Sardor. Endi shu ovozda gapiraman." ;;
+      "")     echo "voice for $lang: $(cfg ".tts.voices.\"$lang\"" 'none')" ;;
+      *)      cfg_set ".tts.voices.\"$lang\"" "\"$1\"" && echo "voice for $lang: $1" && "$SPEAK" --lang "$lang" --voice "$1" "OK" ;;
+    esac ;;
+  engine)
+    e="${1:-}"
+    case "$e" in
+      local|whisper|whisper.cpp) cfg_set '.stt.engine' '"whisper.cpp"' && echo "engine: whisper.cpp (offline)" ;;
+      gigaam)     cfg_set '.stt.engine' '"gigaam"' && echo "engine: gigaam (offline; uz/ru/kk/ky — no English)"; command -v gigaam-stt >/dev/null || echo "install: brew install uv && uv tool install 'gigaam-multilingual-mlx[server]'" ;;
+      groq)       cfg_set '.stt.engine' '"groq"' && echo "engine: groq (needs GROQ_API_KEY in your shell; free tier)" ;;
+      openai)     cfg_set '.stt.engine' '"openai"' && echo "engine: openai (needs OPENAI_API_KEY)" ;;
+      elevenlabs) cfg_set '.stt.engine' '"elevenlabs"' && echo "engine: elevenlabs Scribe (needs ELEVENLABS_API_KEY)" ;;
+      gemini)     cfg_set '.stt.engine' '"gemini"' && echo "engine: gemini (needs GEMINI_API_KEY; free tier; best on real conversational Uzbek)" ;;
+      "")         echo "engine: $(cfg '.stt.engine' 'whisper.cpp')" ;;
+      *)          echo "unknown engine '$e' (local | gigaam | groq | openai | elevenlabs | gemini)" >&2; exit 2 ;;
+    esac
+    "$LISTEN" --stop-server >/dev/null 2>&1 || true ;;
+  say)         "$SPEAK" --wait "$@" ;;
+  test)
+    lang="$(cfg '.tts.lang' 'uz')"
+    case "$lang" in
+      uz) text="Assalomu alaykum, men Jarvis, sizni eshitishga tayyorman." ;;
+      ru) text="Привет, я Джарвис, готов вас слушать." ;;
+      *)  text="Hello, I am Jarvis, ready to listen." ;;
+    esac
+    voice_ensure_dirs; clip="$VOICE_TMP/selftest.mp3"; wav="$VOICE_TMP/selftest.wav"
+    echo "1/3 speaking ($lang)…"; "$SPEAK" --wait "$text" || { echo "speak failed — see $VOICE_LOG"; exit 1; }
+    voice="$(cfg ".tts.voices.\"$lang\"" '')"
+    edge-tts --voice "$voice" --text "$text" --write-media "$clip" >/dev/null 2>&1 && ffmpeg -y -loglevel error -i "$clip" -ar 16000 -ac 1 -c:a pcm_s16le "$wav" || { echo "could not synthesize a test clip"; exit 1; }
+    echo "2/3 transcribing it back with engine $(cfg '.stt.engine' 'whisper.cpp')…"
+    heard="$("$LISTEN" --transcribe "$wav")"; rm -f "$clip" "$wav"
+    echo "3/3 said:  $text"; echo "    heard: $heard"
+    "$LISTEN" --stop-server >/dev/null 2>&1 || true ;;
+  sky)
+    case "${1:-}" in
+      live) "$SKY" --live ;;
+      off)  "$SKY" --stop ;;
+      *)    "$SKY" ;;
+    esac ;;
+  config)      echo "$VOICE_CONFIG"; jq . "$VOICE_CONFIG" ;;
+  log)         tail -n 30 "$VOICE_LOG" 2>/dev/null || echo "no log yet" ;;
+  -h|--help|help) sed -n '2,17p' "${BASH_SOURCE[0]}" ;;
+  *)           echo "unknown command: $cmd" >&2; sed -n '2,17p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+esac
