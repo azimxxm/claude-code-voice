@@ -277,12 +277,9 @@ deliver_to_pane() { # text
 # hands-free: SoX voice-activity detection (quiet rooms only)
 run_vad_loop() {
     printf '\033[2J\033[H'
-  echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   (to'xtatish: Ctrl-C)"
-  printf '    Fon shovqini o'"'"'lchanmoqda (1 s jim turing)… '
+  printf '🎙  qo'"'"'lsiz rejim · til: %s · fon o'"'"'lchanmoqda… ' "$LANG_CODE"
   noise="$(calibrate_threshold)"
-  echo "chegara: $THR   (bir gap ko'pi bilan $(cfg '.mic.max_seconds' '30') s; $(cfg '.mic.stop_after_silence' '1.2') s jimlik = gap tugadi)"
-  echo "    Gapiring, jim bo'ling — matn yuqoridagi Claude oynasiga o'zi yoziladi. Pastdagi ko'rsatkich ovozingizni ko'rsatadi."
-  echo
+  echo "chegara $THR · gapiring, jim bo'ling — yuboriladi · Ctrl-C to'xtatadi"
   wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav"; exit 0' INT TERM EXIT
   n=0
   while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
@@ -304,13 +301,12 @@ run_vad_loop() {
 # presses in this pane. Nothing is recorded otherwise — office chatter never reaches Claude.
 run_ptt_loop() {
   printf '\033[2J\033[H'
-  echo "🎙  ovoz · til: $LANG_CODE · $ENGINE · tugma rejimi — ⌥ Space ni BOSIB TURIB gapiring, qo'yib yuboring (yoki shu oynada ⏎ … ⏎). Ctrl-C = to'xtatish"
   local wav="$VOICE_TMP/ptt-$$.wav" errlog="$VOICE_TMP/ptt-$$.err" recpid key text
   echo $$ > "$VOICE_PTT_LOOP_PID"; rm -f "$VOICE_PTT_FLAG"
   trap 'rm -f "$wav" "$errlog" "$VOICE_PTT_LOOP_PID" "$VOICE_PTT_FLAG"; exit 0' INT TERM EXIT
   while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
     load_config
-    printf '\r\033[K🔘  eshitmayapman — ⌥ Space ni bosib turing (yoki ⏎)'
+    printf '\r\033[K🔘  ⌥ Space ni bosib turib gapiring (yoki ⏎ … ⏎) · til: %s · Ctrl-C to'"'"'xtatadi' "$LANG_CODE"
     until [[ -f "$VOICE_PTT_FLAG" ]]; do
       if read -r -s -t 0.15 -n 1 key 2>/dev/null; then touch "$VOICE_PTT_FLAG"; fi
       tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1 || return 0

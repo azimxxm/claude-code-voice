@@ -30,7 +30,7 @@ source "$SCRIPT_DIR/voice-lib.sh" || exit 1
 readonly LISTEN="$SCRIPT_DIR/voice-listen.sh"
 readonly SETUP="$SCRIPT_DIR/voice-setup.sh"
 readonly PREFIX_SESSION="voice-"
-readonly EAR_HEIGHT=6
+readonly EAR_HEIGHT=4
 
 action="start"; name=""; ear_session=""; extra_args=()
 while (( $# > 0 )); do
