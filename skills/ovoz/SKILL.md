@@ -1,7 +1,7 @@
 ---
 name: ovoz
 description: Talk to Claude Code by voice in Uzbek (or Russian, English, Turkish, Kazakh, German) and hear the answers spoken back — free, offline-first (SoX mic → whisper.cpp with an Uzbek fine-tuned model → tmux types the text into Claude; edge-tts neural voices read Claude's 🔊 line). `/ovoz` status, `/ovoz setup`, `/ovoz start` (ear in this tmux session), `/ovoz uz|ru|en`, `/ovoz speak on|off`, `/ovoz voice madina|sardor`, `/ovoz engine gigaam|gemini`, `/ovoz sky`, `/ovoz test`. Use when the user types /ovoz, says "ovozli", "gaplashamiz", "voice mode", "talk to you", "mikrofon", "o'zbekcha gapir", "говори голосом", or asks how to control Claude Code by voice.
-argument-hint: "[setup [--hotkey] | start | stop | status | uz | ru | en | lang <code> | speak on|off | voice <name>|list | engine <name> | sky [live|off] | test | say <text>]"
+argument-hint: "[setup | hotkey | start | stop | status | mode ptt|vad | uz | ru | en | lang <code> | speak on|off | voice <name>|list | engine <name> | sky [live|off] | test | say <text>]"
 ---
 
 # /ovoz — spoken conversation with Claude Code
@@ -14,6 +14,8 @@ Everything runs through one command, `ovoz` (on PATH after `/ovoz setup`, otherw
 | `setup …`                            | `ovoz setup $ARGS`                    | long step (model downloads); report what got installed, then `ovoz status`.                             |
 | `start`                              | `ovoz start`                          | only works when Claude runs inside tmux (`$TMUX` set). Otherwise tell the user to open a new terminal in the project folder and run `claude-voice`. Never try to start tmux around this session. |
 | `stop`                               | `ovoz stop`                           | ear closed, servers stopped, read-aloud off.                                                            |
+| `mode ptt|vad`                       | `ovoz mode …`                         | ptt (default): records only while ⌥ Space is held or between two ⏎ in the ear pane; vad: hands-free (quiet room). Restart the ear to apply. |
+| `hotkey`                             | `ovoz hotkey`                         | installs the ⌥ Space talk key (Hammerspoon); the user must grant Accessibility once and reload Hammerspoon. |
 | `uz` / `ru` / `en` / `lang <code>`   | `ovoz lang <code>`                    | confirm in that language. `auto` exists but whisper mistakes Uzbek for Arabic-script languages with it. |
 | `speak on|off`                       | `ovoz speak on|off`                   | `on` also means: from now on end every reply with the 🔊 line (rules below).                            |
 | `voice <name>|madina|sardor|list`    | `ovoz voice …`                        | `list <locale>` shows edge-tts voices, e.g. `tr-TR`.                                                    |
@@ -27,6 +29,7 @@ Everything runs through one command, `ovoz` (on PATH after `/ovoz setup`, otherw
 
 Read-aloud on (`~/.claude/ovoz/speak.on` exists, or the prompt starts with `🎙`) means the user is talking, not typing. The `voice-context.sh` hook injects these rules on every prompt; follow them even when it did not fire:
 
+- **The ear is push-to-talk by default**: the user holds ⌥ Space (or presses ⏎ in the ear pane) while speaking; between presses nothing is recorded, so silence from the user means they are busy, not that the mic broke.
 - **Answer in the conversation language** (`tts.lang` in config.json — Uzbek by default). Short spoken sentences; the screen is the side channel, the ear is the main one.
 - **Speech-to-text is imperfect.** Expect missing apostrophes (`o'`, `g'`), Turkish-looking spellings, phonetic English (`gitxab`, `pusht`), mixed languages in one sentence. Infer the intent, never comment on typos, never ask the user to repeat unless the sentence carries no meaning.
 - **Spoken tasks are confirmed before the work starts.** When a 🎙 prompt is a task (build, change, run, check), reply with only `Maqsad: …` (what you understood, precise) plus `🔊 <maqsad qisqacha>. Boshlaymi?` and end the turn. The user hears what you understood while the transcript may still be wrong. Start on the next message: "ha", "boshla", "davom et", "qil", "да", "go" → go, no second question; a correction → fix the goal, ask once more; "yo'q" / "to'xta" → stop. Questions and one-step requests are answered directly.

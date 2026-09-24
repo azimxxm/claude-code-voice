@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # voice-listen.sh — the ear of /ovoz: microphone → text → Claude Code, in Uzbek/Russian/English.
 #
-#   voice-listen.sh --loop --target PANE   hands-free: wait for speech, stop at silence, transcribe,
-#                                          type the text into the tmux pane (+ Enter when auto_submit)
+#   voice-listen.sh --loop --target PANE   the ear pane. mic.mode "ptt" (default): records only while
+#                                          the talk key is held (⌥ Space via Hammerspoon) or between two
+#                                          Enter presses in the pane; "vad": hands-free, stops at silence.
+#                                          Either way the text is typed into the tmux pane (+ Enter).
+#   voice-listen.sh --ptt-press | --ptt-release [--print]
+#                                          what the hotkey calls: with an ear pane running they raise/lower
+#                                          the talk flag; without one they record and type (see --start/--stop)
 #   voice-listen.sh --once                 one utterance → transcript on stdout
 #   voice-listen.sh --transcribe FILE.wav  transcribe a file → stdout
 #   voice-listen.sh --start | --stop [--print] | --toggle
@@ -32,10 +37,14 @@ readonly GIGAAM_URL="http://127.0.0.1:$GIGAAM_PORT"
 readonly GIGAAM_PID="$VOICE_DIR/gigaam-server.pid"
 readonly GIGAAM_LOG="$VOICE_DIR/gigaam-server.log"
 
-mode=""; target=""; file=""; print_it=0; stop_server=0
+mode=""; target=""; file=""; print_it=0; stop_server=0; FORCE_MODE=""
 while (( $# > 0 )); do
   case "$1" in
     --loop)        mode="loop"; shift ;;
+    --vad)         mode="loop"; FORCE_MODE="vad"; shift ;;
+    --ptt)         mode="loop"; FORCE_MODE="ptt"; shift ;;
+    --ptt-press)   mode="ptt-press"; shift ;;
+    --ptt-release) mode="ptt-release"; shift ;;
     --once)        mode="once"; shift ;;
     --transcribe)  mode="transcribe"; file="${2:-}"; shift 2 || break ;;
     --start)       mode="start"; shift ;;
@@ -263,6 +272,74 @@ deliver_to_pane() { # text
 
 # ── modes ───────────────────────────────────────────────────────────────────
 
+# ── the two ear loops ───────────────────────────────────────────────────────
+
+# hands-free: SoX voice-activity detection (quiet rooms only)
+run_vad_loop() {
+    printf '\033[2J\033[H'
+  echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   (to'xtatish: Ctrl-C)"
+  printf '    Fon shovqini o'"'"'lchanmoqda (1 s jim turing)… '
+  noise="$(calibrate_threshold)"
+  echo "chegara: $THR   (bir gap ko'pi bilan $(cfg '.mic.max_seconds' '30') s; $(cfg '.mic.stop_after_silence' '1.2') s jimlik = gap tugadi)"
+  echo "    Gapiring, jim bo'ling — matn yuqoridagi Claude oynasiga o'zi yoziladi. Pastdagi ko'rsatkich ovozingizni ko'rsatadi."
+  echo
+  wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav"; exit 0' INT TERM EXIT
+  n=0
+  while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
+    load_config
+    wait_for_silence_from_claude
+    printf '\r\033[K🎙  eshitayapman… (gapiring)\n'
+    SHOW_METER=1 record_utterance "$wav" || { printf '\r\033[K'; continue; }
+    printf '\r\033[K⏳  yozib olayapman…'
+    text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
+    if looks_like_noise "$text"; then printf '\r\033[K'; continue; fi
+    printf '\r\033[K📝  %s\n' "$text"
+    if (( CLIPPED )); then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; CLIPPED=0; fi
+    deliver_to_pane "$text"
+    n=$(( n + 1 )); (( n % 10 == 0 )) && calibrate_threshold >/dev/null
+  done
+}
+
+# push-to-talk: record only while the talk key is held (ptt.on exists) or between two Enter
+# presses in this pane. Nothing is recorded otherwise — office chatter never reaches Claude.
+run_ptt_loop() {
+  printf '\033[2J\033[H'
+  echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   rejim: tugma   (to'xtatish: Ctrl-C)"
+  echo "    ⌥ Space ni BOSIB TURIB gapiring, qo'yib yuboring — matn yuqoridagi Claude oynasiga yoziladi."
+  echo "    Hotkey yo'q bo'lsa: shu oynada ⏎ = yozishni boshlash, yana ⏎ = yuborish. Tugma bosilmaganda hech narsa eshitilmaydi."
+  echo
+  local wav="$VOICE_TMP/ptt-$$.wav" errlog="$VOICE_TMP/ptt-$$.err" recpid key text
+  echo $$ > "$VOICE_PTT_LOOP_PID"; rm -f "$VOICE_PTT_FLAG"
+  trap 'rm -f "$wav" "$errlog" "$VOICE_PTT_LOOP_PID" "$VOICE_PTT_FLAG"; exit 0' INT TERM EXIT
+  while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
+    load_config
+    printf '\r\033[K🔘  eshitmayapman — ⌥ Space ni bosib turing (yoki ⏎)'
+    until [[ -f "$VOICE_PTT_FLAG" ]]; do
+      if read -r -s -t 0.15 -n 1 key 2>/dev/null; then touch "$VOICE_PTT_FLAG"; fi
+      tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1 || return 0
+    done
+    "$OVOZ_SCRIPTS/voice-speak.sh" --stop >/dev/null 2>&1 || true
+    printf '\r\033[K🎙  yozilmoqda… (qo'"'"'yib yuboring yoki ⏎ = yuborish)\n'
+    rm -f "$wav"
+    rec -S -r 16000 -c 1 -b 16 -e signed-integer "$wav" trim 0 120 2> >(tee "$errlog" >&2) &
+    recpid=$!
+    while kill -0 "$recpid" 2>/dev/null; do
+      [[ -f "$VOICE_PTT_FLAG" ]] || break
+      if read -r -s -t 0.15 -n 1 key 2>/dev/null; then break; fi
+    done
+    kill -INT "$recpid" 2>/dev/null; wait "$recpid" 2>/dev/null
+    rm -f "$VOICE_PTT_FLAG"; sleep 0.1
+    if grep -q "clipped" "$errlog" 2>/dev/null; then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; fi
+    [[ -s "$wav" ]] || { printf '\r\033[K'; continue; }
+    if (( $(stat -f%z "$wav" 2>/dev/null || echo 0) < 16000 )); then printf '\r\033[K(juda qisqa)\n'; continue; fi   # < 0.5 s
+    printf '\r\033[K⏳  yozib olayapman…'
+    text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
+    if looks_like_noise "$text"; then printf '\r\033[K(hech narsa tushunilmadi)\n'; continue; fi
+    printf '\r\033[K📝  %s\n' "$text"
+    deliver_to_pane "$text"
+  done
+}
+
 case "$mode" in
   check)
     problems=0
@@ -345,27 +422,21 @@ case "$mode" in
       whisper.cpp|whisper|local) start_server >/dev/null 2>&1 || echo "⚠️  whisper-server ishga tushmadi — whisper-cli bilan davom (sekinroq)" ;;
       gigaam) start_gigaam >/dev/null 2>&1 || echo "⚠️  gigaam server ishga tushmadi (voice.log)" ;;
     esac
-    printf '\033[2J\033[H'
-    echo "🎙  ovoz — Claude bilan gaplashing   til: $LANG_CODE   engine: $ENGINE   (to'xtatish: Ctrl-C)"
-    printf '    Fon shovqini o'"'"'lchanmoqda (1 s jim turing)… '
-    noise="$(calibrate_threshold)"
-    echo "chegara: $THR   (bir gap ko'pi bilan $(cfg '.mic.max_seconds' '30') s; $(cfg '.mic.stop_after_silence' '1.2') s jimlik = gap tugadi)"
-    echo "    Gapiring, jim bo'ling — matn yuqoridagi Claude oynasiga o'zi yoziladi. Pastdagi ko'rsatkich ovozingizni ko'rsatadi."
-    echo
-    wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav"; exit 0' INT TERM EXIT
-    n=0
-    while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
-      load_config
-      wait_for_silence_from_claude
-      printf '\r\033[K🎙  eshitayapman… (gapiring)\n'
-      SHOW_METER=1 record_utterance "$wav" || { printf '\r\033[K'; continue; }
-      printf '\r\033[K⏳  yozib olayapman…'
-      text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
-      if looks_like_noise "$text"; then printf '\r\033[K'; continue; fi
-      printf '\r\033[K📝  %s\n' "$text"
-      if (( CLIPPED )); then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; CLIPPED=0; fi
-      deliver_to_pane "$text"
-      n=$(( n + 1 )); (( n % 10 == 0 )) && calibrate_threshold >/dev/null
-    done
+    ear_mode="${FORCE_MODE:-$(cfg '.mic.mode' 'ptt')}"
+    if [[ "$ear_mode" == "vad" ]]; then run_vad_loop; else run_ptt_loop; fi
     echo "Claude oynasi yopildi — quloq to'xtadi." ;;
+
+  ptt-press)
+    # the talk key went down
+    "$OVOZ_SCRIPTS/voice-speak.sh" --stop >/dev/null 2>&1 || true   # never record Claude's own voice
+    if [[ -f "$VOICE_PTT_LOOP_PID" ]] && kill -0 "$(cat "$VOICE_PTT_LOOP_PID" 2>/dev/null)" 2>/dev/null; then
+      touch "$VOICE_PTT_FLAG"; exit 0            # an ear pane is listening — it records while the flag exists
+    fi
+    exec "$0" --start ;;                          # no ear pane: record here, type on release
+
+  ptt-release)
+    if [[ -f "$VOICE_PTT_LOOP_PID" ]] && kill -0 "$(cat "$VOICE_PTT_LOOP_PID" 2>/dev/null)" 2>/dev/null; then
+      rm -f "$VOICE_PTT_FLAG"; exit 0            # the ear pane transcribes and types into Claude
+    fi
+    exec "$0" --stop $( (( print_it )) && echo --print ) ;;
 esac

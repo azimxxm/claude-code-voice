@@ -17,7 +17,7 @@ Claude Code ships its own `/voice` dictation (hold Space), but it knows 20 langu
 
 | Part | What | Runs where |
 | --- | --- | --- |
-| **ear** | SoX records until you pause → whisper.cpp transcribes (Metal; `whisper-server` keeps the model warm, ≈ 1 s per sentence). Uzbek uses a fine-tuned Whisper ([`islomov/rubaistt_v2_medium`](https://huggingface.co/islomov/rubaistt_v2_medium), Apache-2.0, ≈ 17 % WER); other languages use `large-v3-turbo`. | on the Mac |
+| **ear** | push-to-talk by default: hold **⌥ Space** (Hammerspoon talk key) or press ⏎ in the ear pane — nothing is recorded otherwise, office chatter never reaches Claude. Hands-free mode (`ovoz mode vad`) records until you pause. → whisper.cpp transcribes (Metal; `whisper-server` keeps the model warm, ≈ 1 s per sentence). Uzbek uses a fine-tuned Whisper ([`islomov/rubaistt_v2_medium`](https://huggingface.co/islomov/rubaistt_v2_medium), Apache-2.0, ≈ 17 % WER); other languages use `large-v3-turbo`. | on the Mac |
 | **voice** | [`edge-tts`](https://github.com/rany2/edge-tts) — Microsoft neural voices `uz-UZ-MadinaNeural` / `uz-UZ-SardorNeural` (the only free Uzbek voices that sound human), plus ru/en/tr/kk/de voices. Reads the `🔊` line Claude ends every answer with. | network, no key |
 | **glue** | tmux types the transcript into Claude's pane and presses Enter. Two hooks: `UserPromptSubmit` tells Claude the conversation is spoken; `Stop` speaks the answer. | plugin |
 | **`/ovoz`** | the skill: status, setup, language, voice, engine, sky, test — Claude runs the `ovoz` command for you. | plugin |
@@ -43,7 +43,7 @@ Then, once:
 
 ```bash
 ovoz setup              # brew: sox, whisper.cpp, edge-tts (pipx); models: large-v3-turbo 1.6 GB + Uzbek 0.5 GB (ready ggml on Hugging Face)
-ovoz setup --hotkey     # optional: Hammerspoon hold-to-talk
+ovoz hotkey             # the talk key (Hammerspoon, ⌥ Space) — recommended
 ```
 
 Requirements: macOS on Apple Silicon (Metal), Homebrew, `python3`, `tmux`, a **microphone** (a Mac mini has none — USB mic, AirPods or your iPhone via Continuity), a Claude Code session in a project folder. The first recording asks for the Microphone permission for your terminal app.
@@ -52,7 +52,7 @@ Requirements: macOS on Apple Silicon (Metal), Homebrew, `python3`, `tmux`, a **m
 
 ```bash
 cd ~/code/my-project
-claude-voice                 # tmux: Claude on top, the ear below. Speak, pause, it is sent.
+claude-voice                 # tmux: Claude on top, the ear below. Hold ⌥ Space, speak, release → sent.
 claude-voice --ear my-sess   # add the ear to a tmux session that is already running
 claude-voice --stop
 ```
@@ -66,6 +66,7 @@ Inside Claude Code, or from any shell:
 /ovoz voice sardor    male Uzbek voice       ovoz voice list tr-TR
 /ovoz engine gigaam   another ear            ovoz engine gemini   (needs GEMINI_API_KEY)
 /ovoz sky             agents as a galaxy     ovoz sky live · ovoz sky off
+/ovoz mode vad        hands-free ear         ovoz mode ptt   (default: talk key)
 /ovoz test            self-test, no mic      ovoz say "Salom"
 ```
 

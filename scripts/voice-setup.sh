@@ -5,8 +5,9 @@
 #   ovoz setup --no-uzbek-model      skip the Uzbek fine-tune (ru/en/… only)
 #   ovoz setup --model NAME          general whisper model: large-v3-turbo (default, 1.6 GB),
 #                                    large-v3-turbo-q5_0 (0.6 GB), medium, small, base
-#   ovoz setup --hotkey              Hammerspoon hold-to-talk (⌥ Space): hold, speak, release →
-#                                    the text is typed wherever the cursor is
+#   ovoz setup --hotkey              the talk key (Hammerspoon, ⌥ Space): hold, speak, release → the
+#                                    ear pane sends it to Claude; without an ear pane it types where
+#                                    the cursor is. Recommended: push-to-talk is the default ear mode
 #   ovoz setup --reset-config        rewrite config.json with defaults (backup kept)
 #   voice-setup.sh --status          the ✓/✗ table only, no changes
 #
@@ -72,7 +73,8 @@ print_status() {
     else echo "  ✗ hooks missing — /plugin install ovoz@ovoz, or ./install.sh"; fi
     [[ "$(jq -r '.voice.enabled // .voiceEnabled // false' "$settings")" == "true" ]] && echo "  ✓ Claude Code built-in /voice enabled (hold Space; en/ru and 18 more, no Uzbek)" || echo "  · built-in /voice off — type /voice in Claude Code (English/Russian dictation)"
   fi
-  if [[ -f "$HS_INIT" ]] && grep -q "$MARK_BEGIN" "$HS_INIT" 2>/dev/null; then echo "  ✓ hotkey: Hammerspoon ⌥ Space hold-to-talk"; else echo "  · hotkey not installed (optional: ovoz setup --hotkey)"; fi
+  if [[ -f "$HS_INIT" ]] && grep -q "$MARK_BEGIN" "$HS_INIT" 2>/dev/null; then echo "  ✓ talk key: Hammerspoon ⌥ Space (hold to talk)"; else echo "  · talk key not installed — ovoz hotkey (recommended: push-to-talk is the default ear mode; without it press ⏎ in the ear pane)"; fi
+  echo "  ear mode: $(cfg '.mic.mode' 'ptt')   (ovoz mode ptt|vad)"
   echo "  config: $VOICE_CONFIG   log: $VOICE_LOG"
   echo
 }
@@ -182,24 +184,26 @@ if (( want_hotkey )); then
     warn "init.lua filter looked wrong — keeping the original untouched"; rm -f "$tmp"
   else
     mv "$tmp" "$HS_INIT"
-    cat >> "$HS_INIT" <<LUA
+    cat >> "$HS_INIT" <<'LUA'
 -- >>> ovoz >>>
--- Hold ⌥ Space, speak (language from $VOICE_CONFIG), release: the text is typed where the cursor is.
-local ovozListen = "$LISTEN"
-local ovozConfig = "$VOICE_CONFIG"
+-- Talk key for Claude Code: hold ⌥ Space, speak, release.
+-- With the ear pane open (claude-voice) the text goes into Claude's tmux pane, wherever you are.
+-- Without it, the text is typed where the cursor is.
+local ovozBin = os.getenv("HOME") .. "/.local/bin/ovoz"
+local ovozConfig = os.getenv("HOME") .. "/.claude/ovoz/config.json"
 local ovozAlert
 hs.hotkey.bind({"alt"}, "space",
   function()
-    hs.execute(ovozListen .. " --start", true)
-    ovozAlert = hs.alert.show("🎙 …", 120)
+    hs.execute(ovozBin .. " ptt press", true)
+    ovozAlert = hs.alert.show("🎙", 120)
   end,
   function()
     if ovozAlert then hs.alert.closeSpecific(ovozAlert) end
-    local out = hs.execute(ovozListen .. " --stop --print", true) or ""
+    local out = hs.execute(ovozBin .. " ptt release --print", true) or ""
     out = out:gsub("^%s+", ""):gsub("%s+$", "")
-    if out == "" then hs.alert.show("⚠️", 1); return end
+    if out == "" then return end
     hs.eventtap.keyStrokes(out)
-    local auto = hs.execute("/usr/bin/env jq -r '.auto_submit' \\"" .. ovozConfig .. "\\"", true) or ""
+    local auto = hs.execute("/usr/bin/env jq -r '.auto_submit' \"" .. ovozConfig .. "\"", true) or ""
     if auto:match("true") then hs.timer.doAfter(0.2, function() hs.eventtap.keyStroke({}, "return") end) end
   end)
 -- <<< ovoz <<<

@@ -4,6 +4,10 @@
 #   ovoz                       status
 #   ovoz setup [--hotkey] [--no-uzbek-model] [--model NAME]   install / repair everything
 #   ovoz start                 add the ear to the tmux session you are in (Claude keeps running)
+#   ovoz mode ptt|vad          ptt (default): the ear records only while you hold the talk key
+#                              vad: hands-free, stops at silence (quiet rooms only)
+#   ovoz hotkey                install the ⌥ Space talk key (Hammerspoon) — same as setup --hotkey
+#   ovoz ptt press|release     what the talk key calls (for other hotkey tools)
 #   ovoz stop                  close the ear, stop local STT servers, read-aloud off
 #   ovoz lang <code>           conversation language: uz ru en tr kk de … (ovoz uz|ru|en = shortcuts)
 #   ovoz speak on|off          read Claude's 🔊 line aloud after every answer
@@ -36,6 +40,21 @@ case "$cmd" in
   --link-quiet) # SessionStart hook: keep launchers pointing at the current plugin version, say nothing
                link_launchers 2>/dev/null; [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || echo "[ovoz] launchers are in ~/.local/bin (not on PATH here): $OVOZ_SCRIPTS/ovoz"; exit 0 ;;
   start)       "$CV" --ear "$@" ;;
+  mode)
+    case "${1:-}" in
+      ptt) cfg_set '.mic.mode' '"ptt"' && echo "mode: ptt — the ear listens only while the talk key is held (⌥ Space) or between two ⏎ in the ear pane" ;;
+      vad) cfg_set '.mic.mode' '"vad"' && echo "mode: vad — hands-free, stops at silence (needs a quiet room); threshold auto-measured" ;;
+      "")  echo "mode: $(cfg '.mic.mode' 'ptt')" ;;
+      *)   echo "usage: ovoz mode ptt|vad" >&2; exit 2 ;;
+    esac
+    echo "restart the ear to apply: ovoz stop && ovoz start   (or claude-voice --stop / claude-voice)" ;;
+  hotkey)      "$SETUP" --hotkey ;;
+  ptt)
+    case "${1:-}" in
+      press)   "$LISTEN" --ptt-press ;;
+      release) shift; "$LISTEN" --ptt-release "$@" ;;
+      *)       echo "usage: ovoz ptt press|release [--print]" >&2; exit 2 ;;
+    esac ;;
   stop)
     for p in $(ear_panes); do tmux kill-pane -t "$p" 2>/dev/null && echo "ear closed ($p)"; done
     "$LISTEN" --stop-server >/dev/null 2>&1; rm -f "$VOICE_SPEAK_FLAG"

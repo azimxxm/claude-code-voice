@@ -6,6 +6,7 @@
 #   models/         whisper.cpp ggml models (downloaded or built by voice-setup.sh)
 #   tmp/            recordings + synthesized clips, deleted after use
 #   speak.on        exists → the Stop hook reads Claude's 🔊 line aloud
+#   ptt.on          exists → the talk key is held: the ear records (push-to-talk mode)
 #   speaking.lock   exists → the ear waits (never transcribe the speaker output)
 #   voice.log       one line per event (ovoz log)
 
@@ -19,6 +20,8 @@ VOICE_SPEAK_FLAG="$VOICE_DIR/speak.on"
 VOICE_SPEAKING_LOCK="$VOICE_DIR/speaking.lock"
 VOICE_PLAYING_PID="$VOICE_DIR/playing.pid"
 VOICE_REC_PID="$VOICE_DIR/recording.pid"
+VOICE_PTT_FLAG="$VOICE_DIR/ptt.on"          # exists while the talk key is held
+VOICE_PTT_LOOP_PID="$VOICE_DIR/ptt-loop.pid" # the ear pane running in push-to-talk mode
 VOICE_LOG="$VOICE_DIR/voice.log"
 
 # Where the ovoz scripts live (plugin cache, a git checkout, or ~/.claude/ovoz/bin).
@@ -58,6 +61,7 @@ voice_config_default() {
     }
   },
   "mic": {
+    "mode": "ptt",
     "threshold": "auto",
     "stop_after_silence": "1.2",
     "max_seconds": "30"

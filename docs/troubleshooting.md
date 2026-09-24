@@ -5,6 +5,8 @@
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `✗ no audio INPUT device` | no microphone (Mac mini) | USB mic, AirPods, or iPhone as mic (Continuity); then `ovoz status` again |
+| the ear pane says "eshitmayapman" and nothing happens | push-to-talk mode: hold ⌥ Space (talk key) or press ⏎ in the ear pane while speaking | `ovoz hotkey` installs the key; `ovoz mode vad` for hands-free in a quiet room |
+| hands-free never stops / cuts words | room noise vs. threshold | `ovoz mode ptt` (default); or lower the mic input level in System Settings → Sound |
 | the ear pane says nothing after you speak | terminal has no Microphone permission | System Settings → Privacy & Security → Microphone → your terminal; if it is not listed: `tccutil reset Microphone`, quit the terminal fully, start again |
 | Claude does not end with 🔊 / nothing is spoken | hooks are read at session start | start a new Claude Code session; `ovoz speak on` |
 | `edge-tts` 403 / 503 | Microsoft rotated its token | `pipx upgrade edge-tts` |

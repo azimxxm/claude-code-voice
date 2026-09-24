@@ -16,7 +16,7 @@ Claude Code'ning o'z `/voice` diktovkasi bor (Space'ni bosib turasiz), lekin u 2
 
 | Qism | Nima | Qayerda |
 | --- | --- | --- |
-| **quloq** | SoX jim bo'lguningizcha yozadi → whisper.cpp matnga o'giradi (Metal; `whisper-server` modelni xotirada tutadi, gap boshiga ≈ 1 s). O'zbekcha uchun fine-tune qilingan Whisper ([`islomov/rubaistt_v2_medium`](https://huggingface.co/islomov/rubaistt_v2_medium), Apache-2.0, ≈ 17 % WER); boshqa tillar `large-v3-turbo`. | Mac'da |
+| **quloq** | default: tugma rejimi — **⌥ Space** ni bosib turasiz (Hammerspoon) yoki quloq oynasida ⏎ bosasiz; boshqa vaqt hech narsa yozilmaydi, ofisdagi gaplar Claude'ga bormaydi. Qo'lsiz rejim (`ovoz mode vad`) jim bo'lguningizcha yozadi. → whisper.cpp matnga o'giradi (Metal; `whisper-server` modelni xotirada tutadi, gap boshiga ≈ 1 s). O'zbekcha uchun fine-tune qilingan Whisper ([`islomov/rubaistt_v2_medium`](https://huggingface.co/islomov/rubaistt_v2_medium), Apache-2.0, ≈ 17 % WER); boshqa tillar `large-v3-turbo`. | Mac'da |
 | **ovoz** | [`edge-tts`](https://github.com/rany2/edge-tts) — Microsoft neyron ovozlari `uz-UZ-MadinaNeural` / `uz-UZ-SardorNeural` (bepul va odamdek eshitiladigan yagona o'zbek ovozlari), ru/en/tr/kk/de ham bor. Claude har javobini tugatadigan `🔊` qatorini o'qiydi. | internet, kalitsiz |
 | **yelim** | tmux matnni Claude oynasiga yozib Enter bosadi. Ikki hook: `UserPromptSubmit` Claude'ga suhbat og'zaki ekanini aytadi; `Stop` javobni gapiradi. | plugin |
 | **`/ovoz`** | skill: holat, setup, til, ovoz, engine, sky, test — `ovoz` buyrug'ini Claude o'zi ishga tushiradi. | plugin |
@@ -42,7 +42,7 @@ Keyin bir marta:
 
 ```bash
 ovoz setup              # brew: sox, whisper.cpp, edge-tts; modellar: large-v3-turbo 1.6 GB + o'zbek 0.5 GB (tayyor ggml, Hugging Face)
-ovoz setup --hotkey     # ixtiyoriy: Hammerspoon bosib-turib-gapirish
+ovoz hotkey             # gapirish tugmasi (Hammerspoon, ⌥ Space) — tavsiya
 ```
 
 Talablar: Apple Silicon Mac (Metal), Homebrew, `python3`, `tmux`, **mikrofon** (Mac mini'da yo'q — USB mikrofon, AirPods yoki iPhone Continuity), loyiha papkasidagi Claude Code sessiyasi. Birinchi yozuvda terminal ilovangiz uchun Mikrofon ruxsati so'raladi.
@@ -51,7 +51,7 @@ Talablar: Apple Silicon Mac (Metal), Homebrew, `python3`, `tmux`, **mikrofon** (
 
 ```bash
 cd ~/code/my-project
-claude-voice                 # tmux: tepada Claude, pastda quloq. Gapiring, jim bo'ling — yuboriladi.
+claude-voice                 # tmux: tepada Claude, pastda quloq. ⌥ Space ni bosib turib gapiring, qo'yib yuboring — yuboriladi.
 claude-voice --ear my-sess   # ishlab turgan tmux sessiyasiga quloq qo'shish
 claude-voice --stop
 ```
@@ -65,6 +65,7 @@ Claude Code ichida yoki istalgan terminalda:
 /ovoz voice sardor    erkak o'zbek ovozi       ovoz voice list tr-TR
 /ovoz engine gigaam   boshqa quloq             ovoz engine gemini   (GEMINI_API_KEY kerak)
 /ovoz sky             agentlar galaktikasi     ovoz sky live · ovoz sky off
+/ovoz mode vad        qo'lsiz quloq            ovoz mode ptt   (default: tugma)
 /ovoz test            mikrofonsiz o'z-o'zini tekshirish     ovoz say "Salom"
 ```
 
