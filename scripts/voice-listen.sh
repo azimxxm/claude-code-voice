@@ -332,6 +332,9 @@ run_ptt_loop() {
     if grep -q "clipped" "$errlog" 2>/dev/null; then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; fi
     [[ -s "$wav" ]] || { printf '\r\033[K'; continue; }
     if (( $(stat -f%z "$wav" 2>/dev/null || echo 0) < 16000 )); then printf '\r\033[K(juda qisqa)\n'; continue; fi   # < 0.5 s
+    # silence or faint noise only → whisper would hallucinate for 20 s; skip it
+    rms="$(sox "$wav" -n stat 2>&1 | awk '/RMS +amplitude/ {print $3}')"
+    if awk -v r="${rms:-0}" 'BEGIN { exit (r < 0.005) ? 0 : 1 }'; then printf '\r\033[K(ovoz eshitilmadi — mikrofon darajasini tekshiring)\n'; continue; fi
     printf '\r\033[K⏳  yozib olayapman…'
     text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
     if looks_like_noise "$text"; then printf '\r\033[K(hech narsa tushunilmadi)\n'; continue; fi

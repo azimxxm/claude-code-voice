@@ -73,7 +73,7 @@ print_status() {
     else echo "  ✗ hooks missing — /plugin install ovoz@ovoz, or ./install.sh"; fi
     [[ "$(jq -r '.voice.enabled // .voiceEnabled // false' "$settings")" == "true" ]] && echo "  ✓ Claude Code built-in /voice enabled (hold Space; en/ru and 18 more, no Uzbek)" || echo "  · built-in /voice off — type /voice in Claude Code (English/Russian dictation)"
   fi
-  if [[ -f "$HS_INIT" ]] && grep -q "$MARK_BEGIN" "$HS_INIT" 2>/dev/null; then echo "  ✓ talk key: Hammerspoon ⌥ Space (hold to talk)"; else echo "  · talk key not installed — ovoz hotkey (recommended: push-to-talk is the default ear mode; without it press ⏎ in the ear pane)"; fi
+  if [[ -f "$HS_INIT" ]] && grep -q -- "$MARK_BEGIN" "$HS_INIT" 2>/dev/null; then echo "  ✓ talk key: Hammerspoon ⌥ Space (hold to talk)"; else echo "  · talk key not installed — ovoz hotkey (recommended: push-to-talk is the default ear mode; without it press ⏎ in the ear pane)"; fi
   echo "  ear mode: $(cfg '.mic.mode' 'ptt')   (ovoz mode ptt|vad)"
   echo "  config: $VOICE_CONFIG   log: $VOICE_LOG"
   echo
@@ -180,7 +180,7 @@ if (( want_hotkey )); then
   cp "$HS_INIT" "$HS_INIT.bak.$(date +%Y%m%d-%H%M%S)"
   tmp="$(mktemp)"
   awk -v b="$MARK_BEGIN" -v e="$MARK_END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$HS_INIT" > "$tmp"
-  if (( $(wc -c < "$tmp") + 200 < $(wc -c < "$HS_INIT") )) && ! grep -q "$MARK_BEGIN" "$HS_INIT"; then
+  if (( $(wc -c < "$tmp") + 200 < $(wc -c < "$HS_INIT") )) && ! grep -q -- "$MARK_BEGIN" "$HS_INIT"; then
     warn "init.lua filter looked wrong — keeping the original untouched"; rm -f "$tmp"
   else
     mv "$tmp" "$HS_INIT"
