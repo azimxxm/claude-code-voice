@@ -75,7 +75,9 @@ start_galaxy() {
   fi
   mkdir -p "$STATE"
   if up "$GALAXY_URL"; then ok "galaxy already running on $GALAXY_URL"; return 0; fi
-  ( cd "$GALAXY_DIR" && nohup node galaxy.mjs --scan "$AGENTS_DIR" --serve --port "$GALAXY_PORT" </dev/null >"$GALAXY_LOG" 2>&1 & echo $! > "$GALAXY_PID" )
+  # exec so the background subshell becomes node itself — otherwise a bash copy lingers as node's parent
+  ( cd "$GALAXY_DIR" && exec nohup node galaxy.mjs --scan "$AGENTS_DIR" --serve --port "$GALAXY_PORT" </dev/null >"$GALAXY_LOG" 2>&1 ) &
+  echo $! > "$GALAXY_PID"; disown 2>/dev/null || true
   wait_up "$GALAXY_URL" || { err "galaxy did not start — see $GALAXY_LOG"; return 1; }
   ok "galaxy → $GALAXY_URL   ($(grep -o '[0-9]* agents' "$GALAXY_LOG" | tail -1 || echo 'your agents') from $AGENTS_DIR)"
   echo "     drag = orbit · wheel = zoom · hover a planet = agent roster · F = fullscreen · R = replay"
@@ -86,7 +88,7 @@ start_flow() {
   mkdir -p "$STATE"
   if up "$FLOW_URL"; then ok "Agent Flow already running on $FLOW_URL"; return 0; fi
   nohup npx -y agent-flow-app --port "$FLOW_PORT" --no-open </dev/null >"$FLOW_LOG" 2>&1 &
-  echo $! > "$FLOW_PID"
+  echo $! > "$FLOW_PID"; disown 2>/dev/null || true
   wait_up "$FLOW_URL" || { err "Agent Flow did not start — see $FLOW_LOG"; return 1; }
   ok "Agent Flow → $FLOW_URL"
   log "sessions started from now on stream every subagent and tool call into the graph (hooks are read at session start)"
