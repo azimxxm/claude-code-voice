@@ -66,7 +66,7 @@ attach_ear() { # session
   tmux set-hook -t "$sess" window-layout-changed "resize-pane -t $ear_pane -y $EAR_HEIGHT" 2>/dev/null || true
   tmux resize-pane -t "$ear_pane" -y "$EAR_HEIGHT" 2>/dev/null || true
   tmux select-pane -t "$claude_pane"
-  touch "$VOICE_SPEAK_FLAG"
+  speak_on_for "$(tmux display -p -t "$claude_pane" '#{pane_current_path}' 2>/dev/null || echo "$PWD")"
   ok "ear attached to $sess — speak; read-aloud is ON (/ovoz speak off turns it off)"
 }
 

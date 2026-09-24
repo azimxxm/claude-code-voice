@@ -28,6 +28,10 @@ touch "$VOICE_SPEAK_FLAG"
 TEST_NAME="context hook injects the 🔊 rule while read-aloud is on" t bash -c 'printf "{\"prompt\":\"salom\"}" | scripts/voice-context.sh | grep -q "🔊"'
 TEST_NAME="context hook flags speech-to-text prompts" t bash -c 'printf "{\"prompt\":\"🎙 salom\"}" | scripts/voice-context.sh | grep -q "speech-to-text"'
 TEST_NAME="context hook ignores slash commands" t test -z "$(printf '{"prompt":"/ovoz status"}' | scripts/voice-context.sh)"
+printf '%s' "/tmp/some/project" > "$VOICE_SPEAK_FLAG"
+TEST_NAME="scoped flag: other folders stay silent" t test -z "$(printf '{"prompt":"salom","cwd":"/tmp/other"}' | scripts/voice-context.sh)"
+TEST_NAME="scoped flag: the project folder gets the rules" t bash -c 'printf "{\"prompt\":\"salom\",\"cwd\":\"/tmp/some/project\"}" | scripts/voice-context.sh | grep -q "🔊"'
+
 rm -f "$VOICE_SPEAK_FLAG"
 TEST_NAME="stop hook exits 0 and stays silent while read-aloud is off" t bash -c 'out=$(printf "{\"last_assistant_message\":\"🔊 x\"}" | scripts/voice-speak.sh --hook); test $? -eq 0 && test -z "$out"'
 

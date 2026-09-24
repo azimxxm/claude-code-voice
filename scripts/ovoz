@@ -68,7 +68,7 @@ case "$cmd" in
     [[ "$code" == "auto" ]] && echo "note: whisper's auto-detect mistakes Uzbek for Arabic-script languages — prefer an explicit code" ;;
   speak)
     case "${1:-}" in
-      on)  touch "$VOICE_SPEAK_FLAG"; echo "read-aloud ON — Claude ends every answer with a 🔊 line and it is spoken" ;;
+      on)  speak_on_for "$PWD"; echo "read-aloud ON for $PWD — Claude ends every answer here with a 🔊 line and it is spoken (other folders stay silent)" ;;
       off) rm -f "$VOICE_SPEAK_FLAG"; "$SPEAK" --stop >/dev/null 2>&1; echo "read-aloud OFF" ;;
       *)   speak_enabled && echo "read-aloud is ON" || echo "read-aloud is OFF" ;;
     esac ;;

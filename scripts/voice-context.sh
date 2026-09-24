@@ -11,11 +11,12 @@
 set -u
 source "$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)/voice-lib.sh" 2>/dev/null || exit 0
 
-speak_enabled || exit 0
+[[ -f "$VOICE_SPEAK_FLAG" ]] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 voice_ensure_config 2>/dev/null || exit 0
 
 payload="$(cat 2>/dev/null || true)"
+speak_enabled "$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null)" || exit 0
 prompt="$(printf '%s' "$payload" | jq -r '.prompt // empty' 2>/dev/null)"
 
 # Slash commands and empty prompts are not conversation.

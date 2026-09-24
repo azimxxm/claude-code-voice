@@ -98,9 +98,16 @@ cfg_set() {
 
 expand_home() { printf '%s' "${1/#\~/$HOME}"; }
 
-# Read-aloud is on for every session while $OVOZ_HOME/speak.on exists
-# (claude-voice creates it, `ovoz speak on|off` toggles it).
-speak_enabled() { [[ -f "$VOICE_SPEAK_FLAG" ]]; }
+# Read-aloud is on while $OVOZ_HOME/speak.on exists (claude-voice creates it, `ovoz speak
+# on|off` toggles it). The file holds the project folder it was turned on for; hooks pass
+# the session's cwd so other sessions (headless runs, other projects) stay silent.
+# An empty file means "every session" (old behaviour).
+speak_enabled() { # [cwd of the current session]
+  [[ -f "$VOICE_SPEAK_FLAG" ]] || return 1
+  local scope; scope="$(cat "$VOICE_SPEAK_FLAG" 2>/dev/null)"
+  [[ -z "$scope" || -z "${1:-}" || "$1" == "$scope" ]]
+}
+speak_on_for() { mkdir -p "$VOICE_DIR"; printf '%s' "${1:-$PWD}" > "$VOICE_SPEAK_FLAG"; }
 
 # Human name of a language code, for the rules shown to Claude.
 lang_name() {

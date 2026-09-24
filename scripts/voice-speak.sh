@@ -131,10 +131,11 @@ case "$mode" in
     exit $problems ;;
 
   hook)
-    speak_enabled || exit 0
+    [[ -f "$VOICE_SPEAK_FLAG" ]] || exit 0
     payload="$(cat 2>/dev/null || true)"
     [[ -n "$payload" ]] || exit 0
     command -v jq >/dev/null 2>&1 || exit 0
+    speak_enabled "$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null)" || exit 0
     body="$(printf '%s' "$payload" | jq -r '.last_assistant_message // empty' 2>/dev/null)"
     if [[ -z "$body" ]]; then
       transcript="$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null)"
