@@ -11,7 +11,8 @@
 #   ovoz stop                  close the ear, stop local STT servers, read-aloud off
 #   ovoz lang <code>           conversation language: uz ru en tr kk de … (ovoz uz|ru|en = shortcuts)
 #   ovoz speak on|off          read Claude's 🔊 line aloud after every answer
-#   ovoz voice <name>          edge-tts voice for the current language (madina | sardor | any voice name)
+#   ovoz voice                 pick a voice for the current language from a numbered list (plays a sample)
+#   ovoz voice <name>          set it directly (madina | sardor | any edge-tts voice name)
 #   ovoz voice list [locale]   voices available, e.g. ovoz voice list tr-TR
 #   ovoz engine <name>         local | gigaam | groq | openai | elevenlabs | gemini   (cloud ones need *_API_KEY)
 #   ovoz say "text"            speak now
@@ -77,13 +78,29 @@ case "$cmd" in
     esac ;;
   voice)
     lang="$(cfg '.tts.lang' 'uz')"
+    case "$lang" in uz) loc="uz-UZ";; ru) loc="ru-RU";; en) loc="en-US";; tr) loc="tr-TR";; kk) loc="kk-KZ";; de) loc="de-DE";; *) loc="$lang";; esac
+    sample() { case "$1" in uz) echo "Salom, men Jarvis. Endi shu ovozda gapiraman.";; ru) echo "Привет, я Джарвис. Теперь я говорю этим голосом.";; *) echo "Hi, I am Jarvis. This is my voice now.";; esac; }
     case "${1:-}" in
-      list)   loc="${2:-}"; command -v edge-tts >/dev/null || { echo "edge-tts missing — ovoz setup" >&2; exit 1; }
-              edge-tts --list-voices 2>/dev/null | { [[ -n "$loc" ]] && grep -i "^$loc" || cat; } ;;
-      madina) cfg_set '.tts.voices.uz' '"uz-UZ-MadinaNeural"' && "$SPEAK" --lang uz "Salom, men Madina. Endi shu ovozda gapiraman." ;;
-      sardor) cfg_set '.tts.voices.uz' '"uz-UZ-SardorNeural"' && "$SPEAK" --lang uz "Salom, men Sardor. Endi shu ovozda gapiraman." ;;
-      "")     echo "voice for $lang: $(cfg ".tts.voices.\"$lang\"" 'none')" ;;
-      *)      cfg_set ".tts.voices.\"$lang\"" "\"$1\"" && echo "voice for $lang: $1" && "$SPEAK" --lang "$lang" --voice "$1" "OK" ;;
+      list)   loc2="${2:-$loc}"; command -v edge-tts >/dev/null || { echo "edge-tts missing — ovoz setup" >&2; exit 1; }
+              edge-tts --list-voices 2>/dev/null | awk -v l="$loc2" 'index($1,l)==1 {print $1, $2}' ;;
+      madina) cfg_set '.tts.voices.uz' '"uz-UZ-MadinaNeural"' && "$SPEAK" --wait --lang uz "Salom, men Madina. Endi shu ovozda gapiraman." ;;
+      sardor) cfg_set '.tts.voices.uz' '"uz-UZ-SardorNeural"' && "$SPEAK" --wait --lang uz "Salom, men Sardor. Endi shu ovozda gapiraman." ;;
+      "")     # pick from a numbered list (interactive), or just print it
+              command -v edge-tts >/dev/null || { echo "edge-tts missing — ovoz setup" >&2; exit 1; }
+              rows=(); while IFS= read -r line; do [[ -n "$line" ]] && rows+=("$line"); done < <(edge-tts --list-voices 2>/dev/null | awk -v l="$loc" 'index($1,l)==1 {print $1, $2}')
+              cur="$(cfg ".tts.voices.\"$lang\"" '')"
+              echo "ovozlar ($loc) — hozirgi: ${cur:-tanlanmagan}"
+              i=0; for r in "${rows[@]}"; do i=$((i+1)); mark=" "; [[ "${r%% *}" == "$cur" ]] && mark="*"; printf ' %s%2d) %s\n' "$mark" "$i" "$r"; done
+              (( i > 0 )) || { echo "bu til uchun edge-tts ovozi yo'q ($loc)"; exit 1; }
+              if [[ -t 0 ]]; then
+                printf 'raqam (Enter = o'"'"'zgarishsiz): '; read -r n
+                [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= i )) || exit 0
+                name="${rows[$((n-1))]%% *}"
+                cfg_set ".tts.voices.\"$lang\"" "\"$name\"" && echo "voice for $lang: $name" && "$SPEAK" --wait --lang "$lang" --voice "$name" "$(sample "$lang")"
+              else
+                echo "tanlash: ovoz voice <nom>   (masalan: ovoz voice ${rows[0]%% *})"
+              fi ;;
+      *)      cfg_set ".tts.voices.\"$lang\"" "\"$1\"" && echo "voice for $lang: $1" && "$SPEAK" --wait --lang "$lang" --voice "$1" "$(sample "$lang")" ;;
     esac ;;
   engine)
     e="${1:-}"

@@ -3,7 +3,7 @@
   "name": "ovoz",
   "owner": { "name": "Azimjon", "url": "https://github.com/azimxxm" },
   "description": "ovoz — spoken conversation with Claude Code in Uzbek and other languages, free and offline-first.",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "homepage": "https://github.com/azimxxm/claude-code-voice",
   "repository": { "type": "git", "url": "https://github.com/azimxxm/claude-code-voice.git" },
   "license": "MIT",
@@ -12,7 +12,7 @@
     {
       "name": "ovoz",
       "description": "Talk to Claude Code in Uzbek (or ru/en/tr/kk/de) and hear it answer — /ovoz skill, hooks, claude-voice, agent-sky",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "source": "./",
       "homepage": "https://github.com/azimxxm/claude-code-voice"
     }
