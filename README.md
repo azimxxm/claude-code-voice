@@ -92,7 +92,7 @@ Keys stay in your shell environment; ovoz never writes them to disk. See [docs/e
  you hear ◄── afplay ◄── edge-tts ◄── Stop hook: the 🔊 line ◄── Claude answers (UserPromptSubmit hook set the rules)
 ```
 
-Details, file map and the reasoning behind each choice: [docs/architecture.md](docs/architecture.md). Problems: [docs/troubleshooting.md](docs/troubleshooting.md). Uzbek README: [README.uz.md](README.uz.md).
+Details, file map and the reasoning behind each choice: [docs/architecture.md](docs/architecture.md). Problems: [docs/troubleshooting.md](docs/troubleshooting.md). Uzbek README: [README.uz.md](README.uz.md). Where the Uzbek model goes next (v3, v4 — own voice, developer vocabulary, open data, what comes from where): [docs/roadmap-model-v3.md](docs/roadmap-model-v3.md).
 
 ## Other languages
 

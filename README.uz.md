@@ -74,4 +74,4 @@ Read-aloud yoqiq bo'lsa Claude sizning tilingizda, qisqa javob beradi, ko'p qada
 
 `ovoz lang <kod>` va `ovoz voice list <locale>` + `ovoz voice <nom>`. Tanib olish `config.json` dagi `stt.models` da alohida modeli bo'lmagan barcha tillar uchun `large-v3-turbo` orqali. O'z tilingiz uchun fine-tune qo'shish — ggml fayl bo'lsa, bitta config qatori; konversiya [docs/models.md](docs/models.md) da.
 
-Batafsil: [docs/architecture.md](docs/architecture.md), [docs/engines.md](docs/engines.md), [docs/troubleshooting.md](docs/troubleshooting.md). Litsenziya: MIT.
+Batafsil: [docs/architecture.md](docs/architecture.md), [docs/engines.md](docs/engines.md), [docs/troubleshooting.md](docs/troubleshooting.md). O'zbek modelining keyingi versiyalari (v3, v4: nima qilamiz, qayerdan nima olamiz): [docs/roadmap-model-v3.md](docs/roadmap-model-v3.md). Litsenziya: MIT.
