@@ -1,9 +1,11 @@
-# ovoz
+# claude-code-voice (`ovoz`)
 
-**Claude Code bilan o'zbekcha gaplashing va javobini eshiting.** Bepul, internetga deyarli bog'liq emas, bitta buyruq.
+**Claude Code bilan o'zbekcha gaplashing va javobini eshiting.** Plugin, skill va buyruq nomi `ovoz`.
+
+O'zbek modeli, whisper.cpp uchun tayyor: **https://huggingface.co/azimxxm/rubaistt-v2-medium-ggml** (516 MB, Apache-2.0). Bepul, internetga deyarli bog'liq emas, bitta buyruq.
 
 ```bash
-claude plugin marketplace add azimxxm/ovoz && claude plugin install ovoz@ovoz
+claude plugin marketplace add azimxxm/claude-code-voice && claude plugin install ovoz@ovoz
 # Claude Code ichida:        /ovoz setup        (vositalar + modellar, ~10 daqiqa, bir marta)
 # loyiha papkasida:          claude-voice       (tepada Claude, pastda quloq — gapiravering)
 ```
@@ -26,20 +28,20 @@ Claude Code'ning o'z `/voice` diktovkasi bor (Space'ni bosib turasiz), lekin u 2
 **Plugin (tavsiya)** — skill va hook'lar o'zi ro'yxatdan o'tadi, boshqa hech narsa tegilmaydi:
 
 ```bash
-claude plugin marketplace add azimxxm/ovoz
+claude plugin marketplace add azimxxm/claude-code-voice
 claude plugin install ovoz@ovoz
 ```
 
 **Oddiy fayllar** — o'sha skriptlar `~/.claude/ovoz/bin` ga ko'chiriladi, hook'lar `~/.claude/settings.json` ga qo'shiladi (backup qoladi), `./uninstall.sh` qaytaradi:
 
 ```bash
-git clone https://github.com/azimxxm/ovoz && cd ovoz && ./install.sh
+git clone https://github.com/azimxxm/claude-code-voice && cd claude-code-voice && ./install.sh
 ```
 
 Keyin bir marta:
 
 ```bash
-ovoz setup              # brew: sox, whisper.cpp, edge-tts; modellar: large-v3-turbo 1.6 GB + o'zbek 0.5 GB
+ovoz setup              # brew: sox, whisper.cpp, edge-tts; modellar: large-v3-turbo 1.6 GB + o'zbek 0.5 GB (tayyor ggml, Hugging Face)
 ovoz setup --hotkey     # ixtiyoriy: Hammerspoon bosib-turib-gapirish
 ```
 

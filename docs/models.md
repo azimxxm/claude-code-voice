@@ -22,9 +22,11 @@ Take-away: plain Whisper is unusable for Uzbek; any Uzbek fine-tune is a differe
 is the best-measured on read speech and worth trying with a real microphone (`ovoz engine gigaam`).
 The default stays rubaiSTT because it won on the tech sentence and speaks proper Latin Uzbek.
 
-## How the Uzbek ggml is made
+## Where the Uzbek ggml comes from
 
-`ovoz setup` first tries a ready ggml copy; if that mirror is missing it builds one:
+`ovoz setup` downloads the ready copy — 516 MB, same Apache-2.0 weights, model card with usage:
+**https://huggingface.co/azimxxm/rubaistt-v2-medium-ggml** (`ggml-rubaistt-medium-q5_0.bin`).
+Override the location with `OVOZ_UZ_GGML_URL=…`. If that download fails, setup builds the file itself:
 
 ```bash
 python3 -m venv venv && venv/bin/pip install torch transformers numpy safetensors huggingface_hub

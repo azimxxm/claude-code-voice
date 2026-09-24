@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "description": "Talk to Claude Code in Uzbek (or Russian, English, Turkish…) and hear it answer — free, offline-first: SoX mic → whisper.cpp with an Uzbek fine-tuned model → tmux types the text into Claude; edge-tts neural voices read the answer. /ovoz skill + hooks + claude-voice launcher + agent-sky visualizers.",
   "author": { "name": "Azimjon", "url": "https://github.com/azimxxm" },
-  "homepage": "https://github.com/azimxxm/ovoz",
-  "repository": "https://github.com/azimxxm/ovoz",
+  "homepage": "https://github.com/azimxxm/claude-code-voice",
+  "repository": "https://github.com/azimxxm/claude-code-voice",
   "license": "MIT",
   "keywords": ["voice", "speech-to-text", "text-to-speech", "uzbek", "o'zbek", "russian", "whisper", "edge-tts", "jarvis", "claude-code"]
 }

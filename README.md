@@ -1,10 +1,12 @@
-# ovoz
+# claude-code-voice (`ovoz`)
 
 **Talk to Claude Code in Uzbek (or Russian, English, Turkish…) and hear it answer.**
-Free, offline-first, one command. *ovoz* means "voice" in Uzbek.
+Free, offline-first, one command. The plugin, the skill and the CLI are called `ovoz` — "voice" in Uzbek.
+
+Uzbek model, ready for whisper.cpp: **https://huggingface.co/azimxxm/rubaistt-v2-medium-ggml** (516 MB, Apache-2.0).
 
 ```bash
-claude plugin marketplace add azimxxm/ovoz && claude plugin install ovoz@ovoz
+claude plugin marketplace add azimxxm/claude-code-voice && claude plugin install ovoz@ovoz
 # then, inside Claude Code:   /ovoz setup        (tools + models, ~10 minutes, one time)
 # then, in a project folder:  claude-voice       (Claude on top, the ear below — just speak)
 ```
@@ -27,20 +29,20 @@ Claude Code ships its own `/voice` dictation (hold Space), but it knows 20 langu
 **Plugin (recommended)** — skill and hooks register themselves, nothing else is touched:
 
 ```bash
-claude plugin marketplace add azimxxm/ovoz
+claude plugin marketplace add azimxxm/claude-code-voice
 claude plugin install ovoz@ovoz
 ```
 
 **Plain files** — same scripts copied to `~/.claude/ovoz/bin`, hooks merged into `~/.claude/settings.json` (backup kept), `./uninstall.sh` reverses it:
 
 ```bash
-git clone https://github.com/azimxxm/ovoz && cd ovoz && ./install.sh
+git clone https://github.com/azimxxm/claude-code-voice && cd claude-code-voice && ./install.sh
 ```
 
 Then, once:
 
 ```bash
-ovoz setup              # brew: sox, whisper.cpp, edge-tts (pipx); models: large-v3-turbo 1.6 GB + Uzbek 0.5 GB
+ovoz setup              # brew: sox, whisper.cpp, edge-tts (pipx); models: large-v3-turbo 1.6 GB + Uzbek 0.5 GB (ready ggml on Hugging Face)
 ovoz setup --hotkey     # optional: Hammerspoon hold-to-talk
 ```
 

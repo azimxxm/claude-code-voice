@@ -4,7 +4,7 @@
 # links ovoz / claude-voice / agent-sky into ~/.local/bin. Then run: ovoz setup
 #
 # Prefer the plugin route when you can — it does the same without touching settings.json:
-#   claude plugin marketplace add azimxxm/ovoz && claude plugin install ovoz@ovoz
+#   claude plugin marketplace add azimxxm/claude-code-voice && claude plugin install ovoz@ovoz
 #
 #   ./install.sh            install / update
 #   ./install.sh --setup    install, then run `ovoz setup` (tools + models) right away
