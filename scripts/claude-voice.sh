@@ -3,16 +3,17 @@
 # the ear at the bottom, Claude's answers read aloud in Uzbek.
 #
 #   claude-voice [name]              start (or re-attach to) a voice session for this project folder
-#   claude-voice --ear [session]     add the ear pane to a tmux session that is already running
+#   claude-voice --ear [session]     add the ear to a tmux session that is already running
 #                                    (the one you are in by default, or any named session)
 #   claude-voice --list              running voice sessions
 #   claude-voice --stop [name]       stop one (Claude, the ear and the whisper-server go with it)
 #   claude-voice --status            what works, what is missing
 #   -- <args>                        everything after -- goes to `claude` as is
 #
-# What happens: the bottom pane runs voice-listen.sh --loop (SoX records until you fall
-# silent, whisper.cpp transcribes in the language from ~/.claude/ovoz/config.json, tmux
-# types the text into Claude's pane and presses Enter). Two hooks do the rest:
+# What happens: a hidden tmux window runs voice-listen.sh --loop (push-to-talk: SoX records
+# while ⌥ Space is held, whisper.cpp transcribes in the language from ~/.claude/ovoz/config.json,
+# tmux types the text into Claude's pane and presses Enter; the status bar shows 🔘/🎙/📝).
+# Two hooks do the rest:
 # voice-context.sh tells Claude the conversation is spoken, voice-speak.sh reads the
 # 🔊 line of every answer with a free Microsoft neural voice (edge-tts).
 
@@ -30,7 +31,6 @@ source "$SCRIPT_DIR/voice-lib.sh" || exit 1
 readonly LISTEN="$SCRIPT_DIR/voice-listen.sh"
 readonly SETUP="$SCRIPT_DIR/voice-setup.sh"
 readonly PREFIX_SESSION="voice-"
-readonly EAR_HEIGHT=4
 
 action="start"; name=""; ear_session=""; extra_args=()
 while (( $# > 0 )); do
@@ -50,24 +50,22 @@ need_tmux() { command -v tmux >/dev/null 2>&1 || { err "tmux missing — brew in
 default_name() { basename "$PWD" | tr -c 'A-Za-z0-9_-\n' '-'; }
 session_name() { echo "${PREFIX_SESSION}$1"; }
 
-# Split the window of $1 (a tmux session or pane) and run the ear against the pane
-# that is active right now — that is where Claude is.
+# Run the ear in a hidden tmux window of $1 (a session or pane) against the pane that is active
+# right now (that is where Claude is). Claude keeps the whole window; the ear's state shows in
+# the session's status bar (🔘 / 🎙 / ⏳ / 📝). prefix+1 opens the ear window (⏎ … ⏎ mode).
 attach_ear() { # session
   local sess="$1" claude_pane
   claude_pane="$(tmux display -p -t "$sess" '#{pane_id}' 2>/dev/null)" || { err "no tmux session '$sess'"; return 1; }
-  if tmux list-panes -t "$sess" -F '#{pane_start_command}' 2>/dev/null | grep -q "voice-listen.sh --loop"; then
+  if tmux list-panes -s -t "$sess" -F '#{pane_start_command}' 2>/dev/null | grep -q "voice-listen.sh --loop"; then
     warn "the ear is already listening in $sess"; return 0
   fi
-  local ear_pane
-  ear_pane="$(tmux split-window -v -l "$EAR_HEIGHT" -t "$claude_pane" -c "$PWD" -P -F '#{pane_id}' "$LISTEN --loop --target $claude_pane")" \
-    || { err "tmux could not open the ear pane"; return 1; }
-  # tmux grows panes proportionally when the window is resized; keep the ear at its height
-  tmux set-hook -t "$sess" client-resized "resize-pane -t $ear_pane -y $EAR_HEIGHT" 2>/dev/null || true
-  tmux set-hook -t "$sess" window-layout-changed "resize-pane -t $ear_pane -y $EAR_HEIGHT" 2>/dev/null || true
-  tmux resize-pane -t "$ear_pane" -y "$EAR_HEIGHT" 2>/dev/null || true
-  tmux select-pane -t "$claude_pane"
+  tmux new-window -d -t "$sess" -n ear -c "$PWD" "$LISTEN --loop --target $claude_pane" \
+    || { err "tmux could not start the ear window"; return 1; }
+  tmux set-option -t "$sess" status-interval 1 >/dev/null 2>&1 || true
+  tmux set-option -t "$sess" status-right-length 90 >/dev/null 2>&1 || true
+  tmux set-option -t "$sess" status-right "#(cat $VOICE_EAR_STATUS 2>/dev/null || echo '🔘 quloq ishga tushmoqda…') " >/dev/null 2>&1 || true
   speak_on_for "$(tmux display -p -t "$claude_pane" '#{pane_current_path}' 2>/dev/null || echo "$PWD")"
-  ok "ear attached to $sess — speak; read-aloud is ON (/ovoz speak off turns it off)"
+  ok "ear attached to $sess — hold ⌥ Space and speak; its state is in the status bar; read-aloud is ON (ovoz speak off turns it off)"
 }
 
 case "$action" in
@@ -121,8 +119,8 @@ case "$action" in
       || { err "tmux could not start the session"; exit 1; }
     attach_ear "$target" || true
     echo ""
-    echo "  ${GREEN}✓${NC} Claude Code — top pane (type there any time, voice and keyboard mix freely)"
-    echo "  ${GREEN}✓${NC} the ear — bottom pane: speak in $(cfg '.lang' 'uz'), pause, the text is sent"
+    echo "  ${GREEN}✓${NC} Claude Code — the whole window (type any time, voice and keyboard mix freely)"
+    echo "  ${GREEN}✓${NC} the ear — hidden window, state in the status bar: hold ⌥ Space, speak in $(cfg '.lang' 'uz'), release → sent"
     echo "  ${GREEN}✓${NC} answers read aloud with $(cfg ".tts.voices.\"$(cfg '.tts.lang' 'uz')\"" 'edge-tts')"
     echo ""
     echo "  change language → /ovoz uz | ru | en      quiet → /ovoz speak off      stop → claude-voice --stop ${name}"

@@ -78,6 +78,8 @@ load_config() {
 load_config
 
 say_status() { printf '%s\n' "$*"; }
+# the tmux status bar shows this line (claude-voice sets status-right to read the file)
+ear_status() { printf '%s' "$*" > "$VOICE_EAR_STATUS" 2>/dev/null || true; }
 
 # ── recording ────────────────────────────────────────────────────────────────
 
@@ -280,16 +282,19 @@ run_vad_loop() {
   printf '🎙  qo'"'"'lsiz rejim · til: %s · fon o'"'"'lchanmoqda… ' "$LANG_CODE"
   noise="$(calibrate_threshold)"
   echo "chegara $THR · gapiring, jim bo'ling — yuboriladi · Ctrl-C to'xtatadi"
-  wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav"; exit 0' INT TERM EXIT
+  wav="$VOICE_TMP/loop-$$.wav"; trap 'rm -f "$wav" "$VOICE_EAR_STATUS"; exit 0' INT TERM EXIT
   n=0
   while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
     load_config
     wait_for_silence_from_claude
+    ear_status "🎙 eshitayapman (qo'lsiz) · $LANG_CODE"
     printf '\r\033[K🎙  eshitayapman… (gapiring)\n'
     SHOW_METER=1 record_utterance "$wav" || { printf '\r\033[K'; continue; }
+    ear_status "⏳ yozib olayapman…"
     printf '\r\033[K⏳  yozib olayapman…'
     text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
     if looks_like_noise "$text"; then printf '\r\033[K'; continue; fi
+    ear_status "📝 ${text:0:70}"
     printf '\r\033[K📝  %s\n' "$text"
     if (( CLIPPED )); then echo "⚠️  mikrofon juda baland (clipping) — System Settings → Sound → Input darajasini pasaytiring"; CLIPPED=0; fi
     deliver_to_pane "$text"
@@ -303,15 +308,17 @@ run_ptt_loop() {
   printf '\033[2J\033[H'
   local wav="$VOICE_TMP/ptt-$$.wav" errlog="$VOICE_TMP/ptt-$$.err" recpid key text
   echo $$ > "$VOICE_PTT_LOOP_PID"; rm -f "$VOICE_PTT_FLAG"
-  trap 'rm -f "$wav" "$errlog" "$VOICE_PTT_LOOP_PID" "$VOICE_PTT_FLAG"; exit 0' INT TERM EXIT
+  trap 'rm -f "$wav" "$errlog" "$VOICE_PTT_LOOP_PID" "$VOICE_PTT_FLAG" "$VOICE_EAR_STATUS"; exit 0' INT TERM EXIT
   while tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1; do
     load_config
+    ear_status "🔘 ⌥Space bosib turib gapiring · $LANG_CODE"
     printf '\r\033[K🔘  ⌥ Space ni bosib turib gapiring (yoki ⏎ … ⏎) · til: %s · Ctrl-C to'"'"'xtatadi' "$LANG_CODE"
     until [[ -f "$VOICE_PTT_FLAG" ]]; do
       if read -r -s -t 0.15 -n 1 key 2>/dev/null; then touch "$VOICE_PTT_FLAG"; fi
       tmux display -p -t "$target" '#{pane_id}' >/dev/null 2>&1 || return 0
     done
     "$OVOZ_SCRIPTS/voice-speak.sh" --stop >/dev/null 2>&1 || true
+    ear_status "🎙 yozilmoqda… (qo'yib yuboring)"
     printf '\r\033[K🎙  yozilmoqda… (qo'"'"'yib yuboring yoki ⏎ = yuborish)\n'
     rm -f "$wav"
     rec -S -r 16000 -c 1 -b 16 -e signed-integer "$wav" trim 0 120 2> >(tee "$errlog" >&2) &
@@ -328,11 +335,14 @@ run_ptt_loop() {
     # silence or faint noise only → whisper would hallucinate for 20 s; skip it
     rms="$(sox "$wav" -n stat 2>&1 | awk '/RMS +amplitude/ {print $3}')"
     if awk -v r="${rms:-0}" 'BEGIN { exit (r < 0.005) ? 0 : 1 }'; then printf '\r\033[K(ovoz eshitilmadi — mikrofon darajasini tekshiring)\n'; continue; fi
+    ear_status "⏳ yozib olayapman…"
     printf '\r\033[K⏳  yozib olayapman…'
-    text="$(transcribe "$wav")" || { printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
-    if looks_like_noise "$text"; then printf '\r\033[K(hech narsa tushunilmadi)\n'; continue; fi
+    text="$(transcribe "$wav")" || { ear_status "⚠️ transkripsiya xatosi"; printf '\r\033[K⚠️  transkripsiya xatosi (voice.log)\n'; continue; }
+    if looks_like_noise "$text"; then ear_status "🔘 hech narsa tushunilmadi — yana urinib ko'ring"; printf '\r\033[K(hech narsa tushunilmadi)\n'; sleep 1.5; continue; fi
+    ear_status "📝 ${text:0:70}"
     printf '\r\033[K📝  %s\n' "$text"
     deliver_to_pane "$text"
+    sleep 1.5
   done
 }
 

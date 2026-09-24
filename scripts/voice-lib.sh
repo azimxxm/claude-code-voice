@@ -22,6 +22,7 @@ VOICE_PLAYING_PID="$VOICE_DIR/playing.pid"
 VOICE_REC_PID="$VOICE_DIR/recording.pid"
 VOICE_PTT_FLAG="$VOICE_DIR/ptt.on"          # exists while the talk key is held
 VOICE_PTT_LOOP_PID="$VOICE_DIR/ptt-loop.pid" # the ear pane running in push-to-talk mode
+VOICE_EAR_STATUS="$VOICE_DIR/ear.status"     # one line: what the ear is doing (shown in the tmux status bar)
 VOICE_LOG="$VOICE_DIR/voice.log"
 
 # Where the ovoz scripts live (plugin cache, a git checkout, or ~/.claude/ovoz/bin).

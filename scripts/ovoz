@@ -32,6 +32,7 @@ voice_ensure_config
 cmd="${1:-status}"; shift || true
 
 ear_panes() { tmux list-panes -a -F '#{pane_id} #{pane_start_command}' 2>/dev/null | grep "voice-listen.sh --loop" | cut -d' ' -f1; }
+ear_sessions() { tmux list-panes -a -F '#{session_name} #{pane_start_command}' 2>/dev/null | grep "voice-listen.sh --loop" | cut -d' ' -f1 | sort -u; }
 
 case "$cmd" in
   status|"")   "$SETUP" --status ;;
@@ -56,7 +57,9 @@ case "$cmd" in
       *)       echo "usage: ovoz ptt press|release [--print]" >&2; exit 2 ;;
     esac ;;
   stop)
+    for sess in $(ear_sessions); do tmux set-option -u -t "$sess" status-right 2>/dev/null; tmux set-option -u -t "$sess" status-interval 2>/dev/null; done
     for p in $(ear_panes); do tmux kill-pane -t "$p" 2>/dev/null && echo "ear closed ($p)"; done
+    rm -f "$VOICE_EAR_STATUS"
     "$LISTEN" --stop-server >/dev/null 2>&1; rm -f "$VOICE_SPEAK_FLAG"
     echo "read-aloud off, local STT servers stopped" ;;
   lang|uz|ru|en|tr|kk|de)
