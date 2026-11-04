@@ -47,6 +47,26 @@ ovoz hotkey             # gapirish tugmasi (Hammerspoon, ⌥ Space) — tavsiya
 
 Talablar: Apple Silicon Mac (Metal), Homebrew, `python3`, `tmux`, **mikrofon** (Mac mini'da yo'q — USB mikrofon, AirPods yoki iPhone Continuity), loyiha papkasidagi Claude Code sessiyasi. Birinchi yozuvda terminal ilovangiz uchun Mikrofon ruxsati so'raladi.
 
+### O'z ovozingizda, internetsiz (OmniVoice)
+
+```bash
+ovoz --config                          # Python venv + mlx-audio + OmniVoice modeli, ovoz shunga o'tadi
+ovoz --clone ~/Movies/my_voice.wav --text "yozuvda aytgan aniq so'zlaringiz"
+```
+
+| | Hajmi |
+| --- | --- |
+| OmniVoice modeli (`mlx-community/OmniVoice-bf16`, Hugging Face cache) | 1.6 GB |
+| Python venv (`~/.claude/ovoz/omnivoice/venv`: mlx, mlx-audio, transformers) | 0.6 GB |
+| **Diskda jami** | **~2.3 GB** (o'rnatishda 4 GB bo'sh joy tekshiriladi) |
+| Gapirayotganda RAM (server 10 daqiqa jim tursa o'zi yopiladi) | ~3 GB |
+
+Kerak: Apple Silicon, Python 3.10+ (yo'q bo'lsa `brew install python` o'zi bajariladi), `--clone` uchun
+ffmpeg. Yozuv: 6–10 soniya, bitta odam, tinch xona, tabiiy ohang — javoblar shu ohangda chiqadi.
+`--text` berilmasa so'zlar avtomatik aniqlanadi — tekshiring, noto'g'ri matn ovozni beqaror qiladi.
+OmniVoice weights **CC-BY-NC-4.0**: shaxsiy / notijoriy foydalanish uchun.
+`ovoz tts edge` — edge-tts'ga qaytish, `ovoz omnivoice remove` — diskni bo'shatish.
+
 ## Ishlatish
 
 ```bash

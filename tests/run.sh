@@ -12,6 +12,15 @@ TEST_NAME="hooks.json is valid JSON" t jq -e . hooks/hooks.json
 TEST_NAME="plugin.json is valid JSON" t jq -e . .claude-plugin/plugin.json
 TEST_NAME="marketplace.json is valid JSON" t jq -e . .claude-plugin/marketplace.json
 
+TEST_NAME="omnivoice.py compiles" t python3 -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" scripts/omnivoice.py
+
+echo "omnivoice text (no model)"
+TEST_NAME="numbers become Uzbek words" t test "$(python3 -I scripts/omnivoice.py normalize --text '2026 yil, 15 ta, 100%')" = "ikki ming yigirma olti yil, o'n besh ta, yuz foiz"
+TEST_NAME="curly apostrophes become ASCII" t test "$(python3 -I scripts/omnivoice.py normalize --text 'O‘zbekiston go’zal')" = "O'zbekiston go'zal"
+TEST_NAME="long text is split into sentences" t bash -c 'python3 -I scripts/omnivoice.py normalize --text "Birinchi gap juda uzun bo'"'"'lib, unda ko'"'"'p so'"'"'z bor ekan. Ikkinchi gap ham yetarlicha uzun bo'"'"'lishi kerak, shunda alohida qoladi." | grep -q " | "'
+TEST_NAME="omnivoice --check never crashes without a venv" t bash -c 'scripts/voice-omnivoice.sh --check; test $? -le 1'
+TEST_NAME="--clone without a file fails with usage" t bash -c '! scripts/voice-omnivoice.sh --clone /no/such.wav'
+
 echo "config"
 source scripts/voice-lib.sh
 voice_ensure_config

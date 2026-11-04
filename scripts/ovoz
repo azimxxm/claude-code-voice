@@ -15,11 +15,16 @@
 #   ovoz voice <name>          set it directly (madina | sardor | any edge-tts voice name)
 #   ovoz voice list [locale]   voices available, e.g. ovoz voice list tr-TR
 #   ovoz engine <name>         local | gigaam | groq | openai | elevenlabs | gemini   (cloud ones need *_API_KEY)
+#   ovoz --config              install OmniVoice: offline Uzbek voice on Apple Silicon (~2.3 GB disk)
+#   ovoz --clone FILE.wav [--text "exact words"] [--name NAME]   speak in your own voice (6–10 s clip)
+#   ovoz --clone off           OmniVoice's own voice again
+#   ovoz tts omnivoice|edge    pick the voice engine (edge = edge-tts, online, Madina/Sardor)
 #   ovoz say "text"            speak now
 #   ovoz test                  self-test without a microphone (speak a sentence, transcribe it back)
 #   ovoz sky [live|off]        your agents as a galaxy · live activity graph · stop both
 #   ovoz link                  put ovoz, claude-voice, agent-sky on PATH (~/.local/bin)
 #   ovoz config | log          show config.json · tail the log
+#   ovoz omnivoice stop|remove|check   free the RAM · delete venv + model · status
 
 set -u
 source "$(cd "$(dirname "$(readlink "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)/voice-lib.sh" || exit 1
@@ -28,6 +33,7 @@ readonly SPEAK="$OVOZ_SCRIPTS/voice-speak.sh"
 readonly SETUP="$OVOZ_SCRIPTS/voice-setup.sh"
 readonly SKY="$OVOZ_SCRIPTS/agent-sky.sh"
 readonly CV="$OVOZ_SCRIPTS/claude-voice.sh"
+readonly OMNI="$OVOZ_SCRIPTS/voice-omnivoice.sh"
 
 voice_ensure_config
 cmd="${1:-status}"; shift || true
@@ -61,7 +67,7 @@ case "$cmd" in
     for sess in $(ear_sessions); do tmux set-option -u -t "$sess" status-right 2>/dev/null; tmux set-option -u -t "$sess" status-interval 2>/dev/null; done
     for p in $(ear_panes); do tmux kill-pane -t "$p" 2>/dev/null && echo "ear closed ($p)"; done
     rm -f "$VOICE_EAR_STATUS"
-    "$LISTEN" --stop-server >/dev/null 2>&1; rm -f "$VOICE_SPEAK_FLAG"
+    "$LISTEN" --stop-server >/dev/null 2>&1; "$OMNI" --stop >/dev/null 2>&1; rm -f "$VOICE_SPEAK_FLAG"
     echo "read-aloud off, local STT servers stopped" ;;
   lang|uz|ru|en|tr|kk|de)
     code="$cmd"; [[ "$cmd" == "lang" ]] && code="${1:-}"
@@ -115,6 +121,17 @@ case "$cmd" in
       *)          echo "unknown engine '$e' (local | gigaam | groq | openai | elevenlabs | gemini)" >&2; exit 2 ;;
     esac
     "$LISTEN" --stop-server >/dev/null 2>&1 || true ;;
+  --config)    "$OMNI" --config ;;
+  --clone|clone) "$OMNI" --clone "$@" ;;
+  omnivoice)   "$OMNI" "--${1:-check}" ;;
+  tts)
+    case "${1:-}" in
+      omnivoice|omni) [[ -x "$VOICE_DIR/omnivoice/venv/bin/python" ]] || { echo "OmniVoice o'rnatilmagan — ovoz --config" >&2; exit 1; }
+                      cfg_set '.tts.engine' '"omnivoice"' && echo "tts: omnivoice (offline)" ;;
+      edge|edge-tts)  cfg_set '.tts.engine' '"edge-tts"' && "$OMNI" --stop >/dev/null 2>&1; echo "tts: edge-tts (online, $(cfg '.tts.voices.uz' 'uz-UZ-MadinaNeural'))" ;;
+      "")             echo "tts: $(cfg '.tts.engine' 'edge-tts')" ;;
+      *)              echo "usage: ovoz tts omnivoice|edge" >&2; exit 2 ;;
+    esac ;;
   say)         "$SPEAK" --wait "$@" ;;
   test)
     lang="$(cfg '.tts.lang' 'uz')"
@@ -139,6 +156,6 @@ case "$cmd" in
     esac ;;
   config)      echo "$VOICE_CONFIG"; jq . "$VOICE_CONFIG" ;;
   log)         tail -n 30 "$VOICE_LOG" 2>/dev/null || echo "no log yet" ;;
-  -h|--help|help) sed -n '2,17p' "${BASH_SOURCE[0]}" ;;
-  *)           echo "unknown command: $cmd" >&2; sed -n '2,17p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+  -h|--help|help) sed -n '2,27p' "${BASH_SOURCE[0]}" ;;
+  *)           echo "unknown command: $cmd" >&2; sed -n '2,27p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
 esac

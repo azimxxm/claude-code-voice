@@ -17,6 +17,13 @@ Ports: `CLAUDE_VOICE_STT_PORT` (whisper-server, 8178), `CLAUDE_VOICE_GIGAAM_PORT
 
 ## Text-to-speech
 
-`tts.engine` is `edge-tts`; `tts.voices.<lang>` maps a language to a voice (`ovoz voice list <locale>`
-prints what exists). Without a network, Russian and English fall back to macOS `say`; there is no
-offline Uzbek voice.
+| Engine | Set with | Needs | Notes |
+| --- | --- | --- | --- |
+| `omnivoice` | `ovoz --config` (then `ovoz --clone FILE.wav`) | Apple Silicon, ~2.3 GB disk, ~3 GB RAM while speaking | offline, any of 646 languages, cloned voice from a 6–10 s clip; weights CC-BY-NC-4.0 |
+| `edge-tts` | `ovoz tts edge` | network | Microsoft neural voices, `tts.voices.<lang>` (`ovoz voice list <locale>`) |
+
+OmniVoice settings live under `tts.omnivoice` in config.json: `model` (`mlx-community/OmniVoice-bf16`),
+`steps` (32; 16 is faster, rougher), `ref_audio` + `ref_text` (set by `--clone`), `port` (8179),
+`idle_seconds` (600). Cloned clips are kept in `~/.claude/ovoz/voices/<name>/`. When OmniVoice fails,
+the same sentence is spoken with edge-tts. Without a network and without OmniVoice, Russian and
+English fall back to macOS `say`.

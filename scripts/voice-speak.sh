@@ -10,7 +10,7 @@
 #   voice-speak.sh --check               is text-to-speech ready? (exit 0/1)
 #   voice-speak.sh --extract < reply.md  print the line that would be spoken (no audio) — for tests
 #
-# Engine: edge-tts (free Microsoft neural voices — the only free Uzbek voices that sound
+# Engine: omnivoice (local, offline, cloned voice — voice-omnivoice.sh) or edge-tts (free Microsoft neural voices — the only free Uzbek voices that sound
 # human: uz-UZ-MadinaNeural / uz-UZ-SardorNeural). Falls back to macOS `say` for ru/en
 # when there is no network; there is no offline Uzbek voice on macOS.
 #
@@ -64,6 +64,29 @@ play_clip() {
   return 0
 }
 
+# OmniVoice (local, cloned voice). Synthesis takes seconds, so the whole job runs detached:
+# the Stop hook returns at once. If OmniVoice fails, the same job falls back to edge-tts.
+speak_omnivoice() { # text lang
+  local job_text="$1" job_lang="$2" clip="$VOICE_TMP/say-$$-$RANDOM.wav"
+  local edge_voice; edge_voice="$(cfg ".tts.voices.\"$job_lang\"" '')"
+  nohup bash -c '
+    omni="$1"; speak="$2"; text="$3"; lang="$4"; clip="$5"; lock="$6"; pidf="$7"; log="$8"; edge_voice="$9"
+    echo $$ > "$pidf"; echo $$ > "$lock"
+    if "$omni" --synth "$text" "$clip" --lang "$lang" >>"$log" 2>&1 && [ -s "$clip" ]; then
+      afplay "$clip"
+    elif [ -n "$edge_voice" ] && command -v edge-tts >/dev/null 2>&1; then
+      echo "$(date "+%F %T") omnivoice failed — edge-tts fallback" >> "$log"
+      edge-tts --voice "$edge_voice" --text "$text" --write-media "$clip.mp3" >/dev/null 2>>"$log" && afplay "$clip.mp3"
+    fi
+    rm -f "$clip" "$clip.mp3" "$lock" "$pidf"
+  ' _ "$OVOZ_SCRIPTS/voice-omnivoice.sh" "$0" "$job_text" "$job_lang" "$clip" "$VOICE_SPEAKING_LOCK" "$VOICE_PLAYING_PID" "$VOICE_LOG" "$edge_voice" \
+    </dev/null >/dev/null 2>&1 &
+  local pid=$!
+  vlog "speak[omnivoice] ${job_text:0:80}"
+  (( wait_for_it )) && wait "$pid"
+  return 0
+}
+
 speak() { # text lang
   local say_text="$1" say_lang="$2" engine voice rate clip
   engine="$(cfg '.tts.engine' 'edge-tts')"
@@ -71,8 +94,11 @@ speak() { # text lang
   rate="$(cfg '.tts.rate' '+0%')"
   stop_playback
   voice_ensure_dirs
+  if [[ "$engine" == "omnivoice" && -z "$voice_override" ]]; then
+    speak_omnivoice "$say_text" "$say_lang"; return 0
+  fi
   clip="$VOICE_TMP/say-$$-$RANDOM.mp3"
-  if [[ "$engine" == "edge-tts" && -n "$voice" ]] && command -v edge-tts >/dev/null 2>&1; then
+  if [[ -n "$voice" ]] && command -v edge-tts >/dev/null 2>&1; then
     if edge-tts --voice "$voice" --rate="$rate" --text "$say_text" --write-media "$clip" >/dev/null 2>>"$VOICE_LOG" && [[ -s "$clip" ]]; then
       vlog "speak[$voice] ${say_text:0:80}"
       play_clip "$clip"
@@ -124,6 +150,8 @@ case "$mode" in
 
   check)
     problems=0
+    echo "  engine: $(cfg '.tts.engine' 'edge-tts')   (ovoz --config → omnivoice, ovoz tts edge → edge-tts)"
+    if [[ "$(cfg '.tts.engine' 'edge-tts')" == "omnivoice" ]]; then "$OVOZ_SCRIPTS/voice-omnivoice.sh" --check || problems=1; fi
     if command -v edge-tts >/dev/null 2>&1; then echo "✓ edge-tts ($(edge-tts --version 2>/dev/null | head -1))"; else echo "✗ edge-tts missing — pipx install edge-tts"; problems=1; fi
     command -v afplay >/dev/null 2>&1 && echo "✓ afplay" || { echo "✗ afplay missing"; problems=1; }
     echo "  voice uz: $(cfg '.tts.voices.uz' '-')   ru: $(cfg '.tts.voices.ru' '-')   en: $(cfg '.tts.voices.en' '-')"

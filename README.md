@@ -48,6 +48,26 @@ ovoz hotkey             # the talk key (Hammerspoon, ⌥ Space) — recommended
 
 Requirements: macOS on Apple Silicon (Metal), Homebrew, `python3`, `tmux`, a **microphone** (a Mac mini has none — USB mic, AirPods or your iPhone via Continuity), a Claude Code session in a project folder. The first recording asks for the Microphone permission for your terminal app.
 
+### Offline voice in your own voice (OmniVoice)
+
+```bash
+ovoz --config                          # Python venv + mlx-audio + OmniVoice model, makes it the voice
+ovoz --clone ~/Movies/my_voice.wav --text "the exact words you said in the clip"
+```
+
+| | Size |
+| --- | --- |
+| OmniVoice model (`mlx-community/OmniVoice-bf16`, Hugging Face cache) | 1.6 GB |
+| Python venv (`~/.claude/ovoz/omnivoice/venv`: mlx, mlx-audio, transformers) | 0.6 GB |
+| **Disk total** | **~2.3 GB** (setup wants 4 GB free) |
+| RAM while speaking (server exits after 10 idle min) | ~3 GB |
+
+Needs Apple Silicon and Python 3.10+ (`brew install python` is run for you if missing) and ffmpeg for
+`--clone`. The clip: 6–10 s, one speaker, quiet room, natural tone — the answers keep that tone.
+Without `--text` the words are transcribed automatically; check them, a wrong transcript makes the
+voice unstable. OmniVoice weights are **CC-BY-NC-4.0**: personal / non-commercial use.
+`ovoz tts edge` goes back to edge-tts, `ovoz omnivoice remove` frees the disk.
+
 ## Use
 
 ```bash
