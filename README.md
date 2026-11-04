@@ -66,7 +66,7 @@ Needs Apple Silicon and Python 3.10+ (`brew install python` is run for you if mi
 `--clone`. The clip: 6–10 s, one speaker, quiet room, natural tone — the answers keep that tone.
 Without `--text` the words are transcribed automatically; check them, a wrong transcript makes the
 voice unstable. OmniVoice weights are **CC-BY-NC-4.0**: personal / non-commercial use.
-`ovoz tts edge` goes back to edge-tts, `ovoz omnivoice remove` frees the disk.
+`ovoz speed 1.2` speaks 20 % faster (0.7 … 1.6). `ovoz tts edge` goes back to edge-tts, `ovoz omnivoice remove` frees the disk.
 
 ## Use
 

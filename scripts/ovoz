@@ -19,6 +19,7 @@
 #   ovoz --clone FILE.wav [--text "exact words"] [--name NAME]   speak in your own voice (6–10 s clip)
 #   ovoz --clone off           OmniVoice's own voice again
 #   ovoz tts omnivoice|edge    pick the voice engine (edge = edge-tts, online, Madina/Sardor)
+#   ovoz speed [0.7…1.6]       speaking speed for both engines (1.2 = 20 % faster); no value = show it
 #   ovoz say "text"            speak now
 #   ovoz test                  self-test without a microphone (speak a sentence, transcribe it back)
 #   ovoz sky [live|off]        your agents as a galaxy · live activity graph · stop both
@@ -132,6 +133,14 @@ case "$cmd" in
       "")             echo "tts: $(cfg '.tts.engine' 'edge-tts')" ;;
       *)              echo "usage: ovoz tts omnivoice|edge" >&2; exit 2 ;;
     esac ;;
+  speed)
+    s="${1:-}"
+    if [[ -z "$s" ]]; then echo "speed: $(cfg '.tts.omnivoice.speed' '1.0')  (edge-tts rate: $(cfg '.tts.rate' '+0%'))"; exit 0; fi
+    awk -v s="$s" 'BEGIN { exit !(s ~ /^[0-9]+([.][0-9]+)?$/ && s >= 0.7 && s <= 1.6) }' || { echo "usage: ovoz speed 0.7 … 1.6   (1.0 = normal, 1.2 = 20 % faster)" >&2; exit 2; }
+    rate="$(awk -v s="$s" 'BEGIN { p = int((s - 1) * 100 + (s >= 1 ? 0.5 : -0.5)); printf "%s%d%%", (p >= 0 ? "+" : ""), p }')"
+    cfg_set '.tts.omnivoice.speed' "$s" && cfg_set '.tts.rate' "\"$rate\"" || exit 1
+    echo "speed: $s  (OmniVoice x$s, edge-tts $rate)"
+    "$SPEAK" --wait "Salom! Endi men shu tezlikda gapiraman. Qanday, yoqdimi?" ;;
   say)         "$SPEAK" --wait "$@" ;;
   test)
     lang="$(cfg '.tts.lang' 'uz')"
@@ -156,6 +165,6 @@ case "$cmd" in
     esac ;;
   config)      echo "$VOICE_CONFIG"; jq . "$VOICE_CONFIG" ;;
   log)         tail -n 30 "$VOICE_LOG" 2>/dev/null || echo "no log yet" ;;
-  -h|--help|help) sed -n '2,27p' "${BASH_SOURCE[0]}" ;;
-  *)           echo "unknown command: $cmd" >&2; sed -n '2,27p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+  -h|--help|help) sed -n '2,28p' "${BASH_SOURCE[0]}" ;;
+  *)           echo "unknown command: $cmd" >&2; sed -n '2,28p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
 esac

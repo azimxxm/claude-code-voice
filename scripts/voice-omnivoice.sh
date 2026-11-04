@@ -6,7 +6,8 @@
 #                                      clone a voice from a 6–10 s recording; without --text the words are
 #                                      transcribed with the ovoz ear (check them: they must match the audio)
 #   ovoz --clone off                   back to OmniVoice's own voice (no reference)
-#   voice-omnivoice.sh --synth "text" OUT.wav [--lang uz]   what voice-speak.sh calls
+#   voice-omnivoice.sh --synth "text" OUT.wav [--lang uz] [--speed 1.2]   what voice-speak.sh calls
+#   ovoz speed 1.2                     speak faster (0.7 … 1.6; 1.0 = the speaker's own pace)
 #   voice-omnivoice.sh --check         ✓/✗ lines for `ovoz status`
 #   voice-omnivoice.sh --stop          stop the background model server (frees ~3 GB RAM)
 #   voice-omnivoice.sh --remove        delete the venv and the downloaded model (cloned voices stay)
@@ -146,9 +147,11 @@ do_clone() {
   [[ -n "$name" ]] || name="$(basename "${src%.*}" | tr -cs 'A-Za-z0-9_-' '-' | sed 's/-*$//')"
   local dir="$VOICES_DIR/$name"; mkdir -p "$dir"
   local ref="$dir/ref.wav" probe="$dir/ref16k.wav"
-  # trim silence at both ends, cut rumble, even loudness, mono 24 kHz, at most 10 s
-  ffmpeg -y -loglevel error -i "$src" -af "silenceremove=start_periods=1:start_threshold=-42dB,areverse,silenceremove=start_periods=1:start_threshold=-42dB,areverse,highpass=f=70,loudnorm=I=-18:TP=-2:LRA=11" \
-    -ac 1 -ar 24000 -t "$REF_MAX_SECONDS" "$ref" || { err "audio o'qilmadi: $src"; exit 1; }
+  # trim long silence at both ends, cut rumble, even loudness, mono 24 kHz, at most 10 s —
+  # then put back a short quiet lead-in and tail: a clip that ends mid-sound makes OmniVoice
+  # start every generated sentence with a short burst of that sound
+  ffmpeg -y -loglevel error -i "$src" -af "silenceremove=start_periods=1:start_threshold=-50dB,areverse,silenceremove=start_periods=1:start_threshold=-50dB,areverse,atrim=0:$((REF_MAX_SECONDS - 1)),highpass=f=70,loudnorm=I=-18:TP=-2:LRA=11,adelay=150:all=1,apad=pad_dur=0.4" \
+    -ac 1 -ar 24000 "$ref" || { err "audio o'qilmadi: $src"; exit 1; }
   local seconds; seconds="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$ref" 2>/dev/null)"
   ok "namuna: $ref (${seconds%.*} s)"
   awk -v s="$seconds" 'BEGIN { exit !(s < 3) }' && warn "namuna juda qisqa (${seconds} s) — 6–10 s tavsiya qilinadi"
@@ -196,25 +199,33 @@ stop_server() {
   rm -f "$OMNI_PID"
 }
 
-do_synth() { # text out [--lang xx]
-  local text="$1" out="$2" lang
-  lang="$(cfg '.tts.lang' 'uz')"
-  [[ "${3:-}" == "--lang" && -n "${4:-}" ]] && lang="$4"
+do_synth() { # text out [--lang xx] [--speed 1.2]
+  local text="$1" out="$2" lang speed
+  lang="$(cfg '.tts.lang' 'uz')"; speed="$(cfg '.tts.omnivoice.speed' '1.0')"
+  shift 2
+  while (( $# > 0 )); do
+    case "$1" in
+      --lang)  [[ -n "${2:-}" ]] && lang="$2"; shift 2 || break ;;
+      --speed) [[ -n "${2:-}" ]] && speed="$2"; shift 2 || break ;;
+      *) shift ;;
+    esac
+  done
+  [[ "$speed" =~ ^[0-9]+([.][0-9]+)?$ ]] || speed="1.0"
   local ref ref_text steps
   ref="$(expand_home "$(cfg '.tts.omnivoice.ref_audio' '')")"; ref_text="$(cfg '.tts.omnivoice.ref_text' '')"; steps="$(cfg '.tts.omnivoice.steps' '32')"
   [[ -n "$ref" && ! -f "$ref" ]] && { vlog "omnivoice: ref audio missing ($ref) — own voice"; ref=""; }
   [[ -n "$ref" ]] || ref_text=""
   if start_server; then
     local body resp
-    body="$(jq -n --arg text "$text" --arg out "$out" --arg lang "$lang" --arg ref "$ref" --arg rt "$ref_text" --argjson steps "$steps" \
-      '{text:$text, out:$out, lang:$lang, ref:$ref, ref_text:$rt, steps:$steps}')"
+    body="$(jq -n --arg text "$text" --arg out "$out" --arg lang "$lang" --arg ref "$ref" --arg rt "$ref_text" --argjson steps "$steps" --argjson speed "$speed" \
+      '{text:$text, out:$out, lang:$lang, ref:$ref, ref_text:$rt, steps:$steps, speed:$speed}')"
     resp="$(curl -s --max-time 120 -H 'Content-Type: application/json' -d "$body" "http://127.0.0.1:$(port)/synth")"
     if [[ "$resp" == *'"ok": true'* && -s "$out" ]]; then vlog "omnivoice ${resp}"; return 0; fi
     vlog "omnivoice server failed: ${resp:-no answer}"
   fi
   [[ -x "$OMNI_PY" ]] || return 1
   # server could not start — one shot (slower: loads the model each time)
-  "$OMNI_PY" -I "$OMNI_SCRIPT" synth --model "$(model_id)" --lang "$lang" --steps "$steps" --text "$text" --out "$out" \
+  "$OMNI_PY" -I "$OMNI_SCRIPT" synth --model "$(model_id)" --lang "$lang" --steps "$steps" --speed "$speed" --text "$text" --out "$out" \
     ${ref:+--ref "$ref" --ref-text "$ref_text"} 2>>"$VOICE_LOG" && [[ -s "$out" ]]
 }
 
@@ -247,6 +258,6 @@ case "$cmd" in
   --stop)                stop_server ;;
   --remove)              do_remove ;;
   --sizes)               print_sizes ;;
-  -h|--help|"")          sed -n '2,15p' "${BASH_SOURCE[0]}" ;;
-  *)                     err "unknown: $cmd"; sed -n '2,15p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
+  -h|--help|"")          sed -n '2,16p' "${BASH_SOURCE[0]}" ;;
+  *)                     err "unknown: $cmd"; sed -n '2,16p' "${BASH_SOURCE[0]}" >&2; exit 2 ;;
 esac

@@ -65,7 +65,7 @@ Kerak: Apple Silicon, Python 3.10+ (yo'q bo'lsa `brew install python` o'zi bajar
 ffmpeg. Yozuv: 6–10 soniya, bitta odam, tinch xona, tabiiy ohang — javoblar shu ohangda chiqadi.
 `--text` berilmasa so'zlar avtomatik aniqlanadi — tekshiring, noto'g'ri matn ovozni beqaror qiladi.
 OmniVoice weights **CC-BY-NC-4.0**: shaxsiy / notijoriy foydalanish uchun.
-`ovoz tts edge` — edge-tts'ga qaytish, `ovoz omnivoice remove` — diskni bo'shatish.
+`ovoz speed 1.2` — 20 % tezroq gapiradi (0.7 … 1.6). `ovoz tts edge` — edge-tts'ga qaytish, `ovoz omnivoice remove` — diskni bo'shatish.
 
 ## Ishlatish
 
